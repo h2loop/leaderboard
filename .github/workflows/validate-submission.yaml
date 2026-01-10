@@ -2,6 +2,7 @@ name: Validate Leaderboard Submission
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - 'model_cards/**'
       - 'trajectories/**'
@@ -12,6 +13,9 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+
+    outputs:
+      validation_passed: ${{ steps.set-output.outputs.passed }}
 
     steps:
       - name: Checkout
@@ -26,7 +30,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas pyarrow
+          pip install pandas pyarrow datasets huggingface_hub
 
       - name: Get changed files
         id: changed-files
@@ -38,6 +42,8 @@ jobs:
 
       - name: Validate submission
         id: validate
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python .github/scripts/validate_submission.py \
             --files "${{ steps.changed-files.outputs.all_changed_files }}"
@@ -56,7 +62,8 @@ jobs:
               validation = {
                 passed: false,
                 errors: ['Validation script failed to produce results'],
-                checks: {}
+                checks: {},
+                sample_details: {}
               };
             }
 
@@ -64,6 +71,7 @@ jobs:
 
             if (validation.passed) {
               body += ':white_check_mark: **All validations passed!**\n\n';
+              body += 'A maintainer will review your submission shortly.\n\n';
             } else {
               body += ':x: **Validation failed**\n\n';
               if (validation.errors && validation.errors.length > 0) {
@@ -84,33 +92,115 @@ jobs:
             body += `- [${checks.provider_recognized ? 'x' : ' '}] Provider is recognized\n`;
             body += `- [${checks.inspect_eval ? 'x' : ' '}] Evaluation done using Inspect\n`;
             body += `- [${checks.no_errors ? 'x' : ' '}] No errors in trajectory logs\n`;
+            body += `- [${checks.sample_count_valid ? 'x' : ' '}] Sample counts match expected (no --limit)\n`;
 
-            github.rest.issues.createComment({
+            if (validation.sample_details && Object.keys(validation.sample_details).length > 0) {
+              body += '\n### Sample Count Details:\n';
+              for (const [benchmark, detail] of Object.entries(validation.sample_details)) {
+                const icon = detail.valid ? ':white_check_mark:' : ':x:';
+                const expected = detail.expected === 'unknown' ? '?' : detail.expected;
+                const skipped = detail.skipped ? ' *(validation skipped)*' : '';
+                body += `- ${icon} **${benchmark}**: ${detail.actual} / ${expected} samples${skipped}\n`;
+              }
+            }
+
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: body
             });
 
+      - name: Set output
+        id: set-output
+        run: |
+          if [ -f validation_result.json ]; then
+            PASSED=$(python3 -c "import json; print(str(json.load(open('validation_result.json'))['passed']))")
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          else
+            echo "passed=False" >> $GITHUB_OUTPUT
+          fi
+
       - name: Fail if validation failed
         if: steps.validate.outcome == 'failure'
         run: exit 1
 
-  label:
+  on-validation-pass:
     runs-on: ubuntu-latest
     needs: validate
-    if: success()
+    if: needs.validate.outputs.validation_passed == 'True'
     permissions:
       pull-requests: write
 
     steps:
-      - name: Add ready-for-review label
+      - name: Request review from maintainer
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.addLabels({
-              issue_number: context.issue.number,
+            const prNumber = context.issue.number;
+
+            // Add ready-for-review label
+            await github.rest.issues.addLabels({
+              issue_number: prNumber,
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: ['submission', 'ready-for-review']
             });
+
+            // Remove needs-work label if present
+            try {
+              await github.rest.issues.removeLabel({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'needs-work'
+              });
+            } catch (e) {
+              // Label may not exist, ignore
+            }
+
+            // Request review from @eaguaida
+            try {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                reviewers: ['eaguaida']
+              });
+            } catch (e) {
+              console.log('Could not request review:', e.message);
+            }
+
+  on-validation-fail:
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.validation_passed == 'False'
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Add needs-work label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+
+            // Add needs-work label
+            await github.rest.issues.addLabels({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['submission', 'needs-work']
+            });
+
+            // Remove ready-for-review label if present
+            try {
+              await github.rest.issues.removeLabel({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'ready-for-review'
+              });
+            } catch (e) {
+              // Label may not exist, ignore
+            }
