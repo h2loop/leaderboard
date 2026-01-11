@@ -10,6 +10,7 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 REQUIRED_COLUMNS = ["model", "teleqna", "telelogs", "telemath", "3gpp_tsg", "date"]
@@ -250,13 +251,13 @@ def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
     checks["model_format"] = model_format_ok
     checks["provider_recognized"] = provider_recognized
 
-    # Validate score arrays
+    # Validate score arrays (can be list, tuple, or numpy array from parquet)
     for col in ["teleqna", "telelogs", "telemath", "3gpp_tsg"]:
         if col not in df.columns:
             continue
         for idx, val in df[col].items():
             if val is not None:
-                if not isinstance(val, (list, tuple)) or len(val) < 2:
+                if not isinstance(val, (list, tuple, np.ndarray)) or len(val) < 2:
                     errors.append(f"Invalid score format in {col} row {idx}: expected [score, stderr, ...]")
 
     return checks, errors
