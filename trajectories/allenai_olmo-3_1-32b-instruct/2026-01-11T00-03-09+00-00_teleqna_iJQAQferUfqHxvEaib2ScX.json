@@ -1,0 +1,569 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "2CMS3LMW3bbpxtavZ7cZtA",
+    "run_id": "8NWojiD2hS3vmdVfedvmsy",
+    "created": "2026-01-11T00:03:09+00:00",
+    "task": "teleqna",
+    "task_id": "iJQAQferUfqHxvEaib2ScX",
+    "task_version": 0,
+    "task_file": "teleqna/teleqna.py",
+    "task_display_name": "teleqna",
+    "task_registry_name": "teleqna",
+    "task_attribs": {},
+    "task_args": {
+      "subject": "full",
+      "dataset_path": "GSMA/open_telco",
+      "split": "test"
+    },
+    "task_args_passed": {},
+    "dataset": {
+      "name": "GSMA/open_telco",
+      "location": "GSMA/open_telco",
+      "samples": 1000,
+      "sample_ids": [
+        1
+      ],
+      "shuffled": false
+    },
+    "model": "openrouter/allenai/olmo-3.1-32b-instruct",
+    "model_generate_config": {},
+    "model_base_url": "https://openrouter.ai/api/v1",
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "limit": 1,
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": true,
+      "log_images": true,
+      "log_shared": 0,
+      "score_display": true
+    },
+    "revision": {
+      "type": "git",
+      "origin": "git@github.com:gsma-research/open_telco.git",
+      "commit": "0493534",
+      "dirty": true
+    },
+    "packages": {
+      "inspect_ai": "0.3.158"
+    },
+    "scorers": [
+      {
+        "name": "choice",
+        "options": {},
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "multiple_choice",
+        "params": {
+          "template": null,
+          "cot": false,
+          "multiple_correct": false,
+          "max_tokens": null,
+          "kwargs": {}
+        },
+        "params_passed": {
+          "cot": false
+        }
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 1,
+    "completed_samples": 1,
+    "scores": [
+      {
+        "name": "choice",
+        "scorer": "choice",
+        "scored_samples": 1,
+        "unscored_samples": 0,
+        "params": {},
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 1.0,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.0,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-01-11T00:03:09+00:00",
+    "completed_at": "2026-01-11T00:03:12+00:00",
+    "model_usage": {
+      "openrouter/allenai/olmo-3.1-32b-instruct": {
+        "input_tokens": 178,
+        "output_tokens": 165,
+        "total_tokens": 343,
+        "input_tokens_cache_read": 0,
+        "reasoning_tokens": 0
+      }
+    }
+  },
+  "invalidated": false,
+  "samples": [
+    {
+      "id": 1,
+      "epoch": 1,
+      "input": "What is the time constant for a person standing on a ground plane with a resistance of 1000 MΩ and a capacitance of 150 pF? [IEEE C95.1]",
+      "choices": [
+        "15 ms",
+        "75 ms",
+        "150 ms",
+        "300 ms",
+        "600 ms"
+      ],
+      "target": "C",
+      "messages": [
+        {
+          "id": "BzGuebdoTQyb4hWKiiyxb5",
+          "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nWhat is the time constant for a person standing on a ground plane with a resistance of 1000 MΩ and a capacitance of 150 pF? [IEEE C95.1]\n\nA) 15 ms\nB) 75 ms\nC) 150 ms\nD) 300 ms\nE) 600 ms",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "eh2KYVo2pwcFySazhWzCE5",
+          "content": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+          "source": "generate",
+          "role": "assistant",
+          "model": "allenai/olmo-3.1-32b-instruct"
+        }
+      ],
+      "output": {
+        "model": "allenai/olmo-3.1-32b-instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "eh2KYVo2pwcFySazhWzCE5",
+              "content": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+              "source": "generate",
+              "role": "assistant",
+              "model": "allenai/olmo-3.1-32b-instruct"
+            },
+            "stop_reason": "stop"
+          }
+        ],
+        "completion": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+        "usage": {
+          "input_tokens": 178,
+          "output_tokens": 165,
+          "total_tokens": 343,
+          "input_tokens_cache_read": 0,
+          "reasoning_tokens": 0
+        },
+        "time": 2.9259512910011836
+      },
+      "scores": {
+        "choice": {
+          "value": "C",
+          "answer": "C",
+          "explanation": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+          "history": []
+        }
+      },
+      "metadata": {
+        "subject": "Standards specifications"
+      },
+      "store": {},
+      "events": [
+        {
+          "uuid": "RtuQH5SixnFccHq3t97dqQ",
+          "span_id": "3454418552f748fd89878bd11442cee7",
+          "timestamp": "2026-01-11T00:03:09.384698+00:00",
+          "working_start": 9304.964046791,
+          "event": "span_begin",
+          "id": "3454418552f748fd89878bd11442cee7",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "VYxe4BDVDmHY84uTtAi6M5",
+          "span_id": "3454418552f748fd89878bd11442cee7",
+          "timestamp": "2026-01-11T00:03:09.385971+00:00",
+          "working_start": 9304.965319125,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://4fb0dc13ae1c01cc95c6650f8888695b",
+            "choices": [
+              "15 ms",
+              "75 ms",
+              "150 ms",
+              "300 ms",
+              "600 ms"
+            ],
+            "target": "C",
+            "id": 1,
+            "metadata": {
+              "subject": "Standards specifications"
+            }
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "BzGuebdoTQyb4hWKiiyxb5",
+                "content": "attachment://4fb0dc13ae1c01cc95c6650f8888695b",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "openrouter/allenai/olmo-3.1-32b-instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {
+              "subject": "Standards specifications"
+            }
+          }
+        },
+        {
+          "uuid": "hQcTBsPry2yfUDJJDGKeNw",
+          "span_id": "3454418552f748fd89878bd11442cee7",
+          "timestamp": "2026-01-11T00:03:09.387537+00:00",
+          "working_start": 9304.966885333,
+          "event": "span_end",
+          "id": "3454418552f748fd89878bd11442cee7"
+        },
+        {
+          "uuid": "UVTBxBdTDDg6U28mBfCz2C",
+          "span_id": "df801eac41a441eab52750d3dad43c75",
+          "timestamp": "2026-01-11T00:03:09.390169+00:00",
+          "working_start": 0.0015327090004575439,
+          "event": "span_begin",
+          "id": "df801eac41a441eab52750d3dad43c75",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "V7QFK3PHB9tXEPV76yC4H6",
+          "span_id": "f30f32aa8db14980a0a0d8022d411fb9",
+          "timestamp": "2026-01-11T00:03:09.391261+00:00",
+          "working_start": 0.0026245420012855902,
+          "event": "span_begin",
+          "id": "f30f32aa8db14980a0a0d8022d411fb9",
+          "parent_id": "df801eac41a441eab52750d3dad43c75",
+          "type": "solver",
+          "name": "multiple_choice"
+        },
+        {
+          "uuid": "N9nHqZNUwPt5VAoZENdxEo",
+          "span_id": "f30f32aa8db14980a0a0d8022d411fb9",
+          "timestamp": "2026-01-11T00:03:09.392695+00:00",
+          "working_start": 0.004058417000123882,
+          "event": "model",
+          "model": "openrouter/allenai/olmo-3.1-32b-instruct",
+          "input": [
+            {
+              "id": "BzGuebdoTQyb4hWKiiyxb5",
+              "content": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nWhat is the time constant for a person standing on a ground plane with a resistance of 1000 MΩ and a capacitance of 150 pF? [IEEE C95.1]\n\nA) 15 ms\nB) 75 ms\nC) 150 ms\nD) 300 ms\nE) 600 ms",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {},
+          "output": {
+            "model": "allenai/olmo-3.1-32b-instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "eh2KYVo2pwcFySazhWzCE5",
+                  "content": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "allenai/olmo-3.1-32b-instruct"
+                },
+                "stop_reason": "stop"
+              }
+            ],
+            "completion": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+            "usage": {
+              "input_tokens": 178,
+              "output_tokens": 165,
+              "total_tokens": 343,
+              "input_tokens_cache_read": 0,
+              "reasoning_tokens": 0
+            },
+            "time": 2.9259512910011836
+          },
+          "call": {
+            "request": {
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "attachment://501bbbdc45fb2ff356d63c29db28e3c8"
+                }
+              ],
+              "tools": null,
+              "tool_choice": null,
+              "extra_headers": {
+                "x-irid": "Rn37DVBFnznVagodFwXp6S"
+              },
+              "model": "allenai/olmo-3.1-32b-instruct"
+            },
+            "response": {
+              "id": "gen-1768089789-OP4P5wwPa3yYN91YrlRq",
+              "choices": [
+                {
+                  "finish_reason": "stop",
+                  "index": 0,
+                  "logprobs": null,
+                  "message": {
+                    "content": "attachment://d7872f4eb03324cea78affb7336000ae",
+                    "refusal": null,
+                    "role": "assistant",
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": null,
+                    "reasoning": null
+                  },
+                  "native_finish_reason": "stop"
+                }
+              ],
+              "created": 1768089789,
+              "model": "allenai/olmo-3.1-32b-instruct",
+              "object": "chat.completion",
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "completion_tokens": 165,
+                "prompt_tokens": 178,
+                "total_tokens": 343,
+                "completion_tokens_details": {
+                  "accepted_prediction_tokens": null,
+                  "audio_tokens": null,
+                  "reasoning_tokens": 0,
+                  "rejected_prediction_tokens": null,
+                  "image_tokens": 0
+                },
+                "prompt_tokens_details": {
+                  "audio_tokens": 0,
+                  "cached_tokens": 0,
+                  "video_tokens": 0
+                },
+                "cost": 0.0001346,
+                "is_byok": false,
+                "cost_details": {
+                  "upstream_inference_cost": null,
+                  "upstream_inference_prompt_cost": 0.0000356,
+                  "upstream_inference_completions_cost": 0.000099
+                }
+              },
+              "provider": "DeepInfra"
+            },
+            "time": 2.9259512910011836
+          },
+          "completed": "2026-01-11T00:03:12.329419+00:00",
+          "working_time": 2.9259512910011836
+        },
+        {
+          "uuid": "9VrL8ixvDHxFc8n58gqfKk",
+          "span_id": "f30f32aa8db14980a0a0d8022d411fb9",
+          "timestamp": "2026-01-11T00:03:12.330510+00:00",
+          "working_start": 2.931220915999802,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 2.9259512910011836
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 178,
+                "output_tokens": 165,
+                "total_tokens": 343,
+                "input_tokens_cache_read": 0,
+                "reasoning_tokens": 0
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "allenai/olmo-3.1-32b-instruct",
+              "replaced": "openrouter/allenai/olmo-3.1-32b-instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "attachment://d7872f4eb03324cea78affb7336000ae",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "eh2KYVo2pwcFySazhWzCE5",
+                  "content": "attachment://d7872f4eb03324cea78affb7336000ae",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "allenai/olmo-3.1-32b-instruct"
+                },
+                "stop_reason": "stop"
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/messages/0/content",
+              "value": "attachment://501bbbdc45fb2ff356d63c29db28e3c8",
+              "replaced": "What is the time constant for a person standing on a ground plane with a resistance of 1000 MΩ and a capacitance of 150 pF? [IEEE C95.1]"
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "eh2KYVo2pwcFySazhWzCE5",
+                "content": "attachment://d7872f4eb03324cea78affb7336000ae",
+                "source": "generate",
+                "role": "assistant",
+                "model": "allenai/olmo-3.1-32b-instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "ahhTy894XRrGWGmaHHoYsA",
+          "span_id": "f30f32aa8db14980a0a0d8022d411fb9",
+          "timestamp": "2026-01-11T00:03:12.335389+00:00",
+          "working_start": 2.936101082999812,
+          "event": "span_end",
+          "id": "f30f32aa8db14980a0a0d8022d411fb9"
+        },
+        {
+          "uuid": "4jpCD8ieQxF8v7DVEREZEM",
+          "span_id": "df801eac41a441eab52750d3dad43c75",
+          "timestamp": "2026-01-11T00:03:12.341782+00:00",
+          "working_start": 2.9424994159999187,
+          "event": "span_end",
+          "id": "df801eac41a441eab52750d3dad43c75"
+        },
+        {
+          "uuid": "S3LhVD2ez9n3F9qwhyw5wF",
+          "span_id": "e45f5ec3154d435694c61e6e667a6727",
+          "timestamp": "2026-01-11T00:03:12.347273+00:00",
+          "working_start": 2.9479864990007627,
+          "event": "span_begin",
+          "id": "e45f5ec3154d435694c61e6e667a6727",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "jrPKYk7NivaQYiWghQHk8d",
+          "span_id": "407fd5236d364102bf001b1f71efd7d5",
+          "timestamp": "2026-01-11T00:03:12.353007+00:00",
+          "working_start": 2.9537199160004093,
+          "event": "span_begin",
+          "id": "407fd5236d364102bf001b1f71efd7d5",
+          "parent_id": "e45f5ec3154d435694c61e6e667a6727",
+          "type": "scorer",
+          "name": "choice"
+        },
+        {
+          "uuid": "LM8TVLHum2kCvsFY6yQeRy",
+          "span_id": "407fd5236d364102bf001b1f71efd7d5",
+          "timestamp": "2026-01-11T00:03:12.357588+00:00",
+          "working_start": 2.9583010830010608,
+          "event": "score",
+          "score": {
+            "value": "C",
+            "answer": "C",
+            "explanation": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+            "history": []
+          },
+          "target": "C",
+          "intermediate": false
+        },
+        {
+          "uuid": "GAXRZtYnmmaQwsDZuuiw78",
+          "span_id": "407fd5236d364102bf001b1f71efd7d5",
+          "timestamp": "2026-01-11T00:03:12.363480+00:00",
+          "working_start": 2.964196916000219,
+          "event": "span_end",
+          "id": "407fd5236d364102bf001b1f71efd7d5"
+        },
+        {
+          "uuid": "HQyoDKDoNrXirisyKdTDKA",
+          "span_id": "e45f5ec3154d435694c61e6e667a6727",
+          "timestamp": "2026-01-11T00:03:12.367066+00:00",
+          "working_start": 2.967777666000984,
+          "event": "span_end",
+          "id": "e45f5ec3154d435694c61e6e667a6727"
+        }
+      ],
+      "model_usage": {
+        "openrouter/allenai/olmo-3.1-32b-instruct": {
+          "input_tokens": 178,
+          "output_tokens": 165,
+          "total_tokens": 343,
+          "input_tokens_cache_read": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      "started_at": "2026-01-11T00:03:09.388639+00:00",
+      "completed_at": "2026-01-11T00:03:12.373694+00:00",
+      "total_time": 2.985,
+      "working_time": 2.974,
+      "uuid": "cByBE39JACZ2878bQogkpP",
+      "error_retries": [],
+      "attachments": {
+        "501bbbdc45fb2ff356d63c29db28e3c8": "Answer the following multiple choice question. The entire content of your response should be of the following format: 'ANSWER: $LETTER' (without quotes) where LETTER is one of A,B,C,D,E.\n\nWhat is the time constant for a person standing on a ground plane with a resistance of 1000 MΩ and a capacitance of 150 pF? [IEEE C95.1]\n\nA) 15 ms\nB) 75 ms\nC) 150 ms\nD) 300 ms\nE) 600 ms",
+        "d7872f4eb03324cea78affb7336000ae": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+        "4fb0dc13ae1c01cc95c6650f8888695b": "What is the time constant for a person standing on a ground plane with a resistance of 1000 MΩ and a capacitance of 150 pF? [IEEE C95.1]"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "choice",
+      "samples": [
+        {
+          "value": 1.0,
+          "answer": "C",
+          "explanation": "The time constant (τ) for an RC circuit is given by τ = R × C. Here, the resistance R is 1000 MΩ (which is 1 × 10^9 Ω), and the capacitance C is 150 pF (which is 150 × 10^-12 F).\n\nLet's compute τ:\n\nτ = R × C\n  = (1 × 10^9 Ω) × (150 × 10^-12 F)\n  = 1 × 10^9 × 150 × 10^-12\n  = 150 × 10^(9 - 12)\n  = 150 × 10^-3\n  = 0.15 seconds\n  = 150 milliseconds\n\nSo the correct answer is:\n\nANSWER: C",
+          "history": [],
+          "sample_id": 1
+        }
+      ]
+    }
+  ]
+}
