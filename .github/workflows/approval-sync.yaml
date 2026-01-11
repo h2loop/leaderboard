@@ -3,11 +3,15 @@ name: Approval Sync to HuggingFace
 on:
   pull_request_review:
     types: [submitted]
+  pull_request:
+    types: [labeled]
 
 jobs:
   handle-approval:
     runs-on: ubuntu-latest
-    if: github.event.review.state == 'approved'
+    if: |
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'approve')
     permissions:
       pull-requests: write
       contents: write
@@ -16,7 +20,7 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Setup Python
