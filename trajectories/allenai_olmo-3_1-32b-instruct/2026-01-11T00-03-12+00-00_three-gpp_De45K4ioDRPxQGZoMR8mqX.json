@@ -1,0 +1,540 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "eval_id": "UtNcQXhWvby3JrA8mnTE8g",
+    "run_id": "8NWojiD2hS3vmdVfedvmsy",
+    "created": "2026-01-11T00:03:12+00:00",
+    "task": "three_gpp",
+    "task_id": "De45K4ioDRPxQGZoMR8mqX",
+    "task_version": 0,
+    "task_file": "three_gpp/three_gpp.py",
+    "task_display_name": "three_gpp",
+    "task_registry_name": "three_gpp",
+    "task_attribs": {},
+    "task_args": {
+      "dataset_path": "GSMA/open_telco",
+      "split": "test"
+    },
+    "task_args_passed": {},
+    "dataset": {
+      "name": "GSMA/open_telco",
+      "location": "GSMA/open_telco",
+      "samples": 100,
+      "sample_ids": [
+        1
+      ],
+      "shuffled": false
+    },
+    "model": "openrouter/allenai/olmo-3.1-32b-instruct",
+    "model_generate_config": {},
+    "model_base_url": "https://openrouter.ai/api/v1",
+    "model_args": {},
+    "model_roles": {},
+    "config": {
+      "limit": 1,
+      "epochs": 1,
+      "epochs_reducer": [
+        "mean"
+      ],
+      "fail_on_error": true,
+      "continue_on_fail": false,
+      "sandbox_cleanup": true,
+      "log_samples": true,
+      "log_realtime": true,
+      "log_images": true,
+      "log_shared": 0,
+      "score_display": true
+    },
+    "revision": {
+      "type": "git",
+      "origin": "git@github.com:gsma-research/open_telco.git",
+      "commit": "0493534",
+      "dirty": true
+    },
+    "packages": {
+      "inspect_ai": "0.3.158"
+    },
+    "scorers": [
+      {
+        "name": "pattern",
+        "options": {
+          "pattern": "([A-Z]+\\d+(?:-[A-Z]+)?)",
+          "ignore_case": true
+        },
+        "metrics": [
+          {
+            "name": "inspect_ai/accuracy",
+            "options": {}
+          },
+          {
+            "name": "inspect_ai/stderr",
+            "options": {}
+          }
+        ],
+        "metadata": {}
+      }
+    ]
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      {
+        "solver": "generate",
+        "params": {
+          "tool_calls": "loop",
+          "kwargs": {}
+        },
+        "params_passed": {}
+      }
+    ],
+    "config": {}
+  },
+  "results": {
+    "total_samples": 1,
+    "completed_samples": 1,
+    "scores": [
+      {
+        "name": "pattern",
+        "scorer": "pattern",
+        "scored_samples": 1,
+        "unscored_samples": 0,
+        "params": {
+          "pattern": "([A-Z]+\\d+(?:-[A-Z]+)?)",
+          "ignore_case": true
+        },
+        "metrics": {
+          "accuracy": {
+            "name": "accuracy",
+            "value": 0.0,
+            "params": {}
+          },
+          "stderr": {
+            "name": "stderr",
+            "value": 0.0,
+            "params": {}
+          }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2026-01-11T00:03:12+00:00",
+    "completed_at": "2026-01-11T00:03:12+00:00",
+    "model_usage": {
+      "openrouter/allenai/olmo-3.1-32b-instruct": {
+        "input_tokens": 645,
+        "output_tokens": 10,
+        "total_tokens": 655,
+        "input_tokens_cache_read": 0,
+        "reasoning_tokens": 0
+      }
+    }
+  },
+  "invalidated": false,
+  "samples": [
+    {
+      "id": 1,
+      "epoch": 1,
+      "input": "As a distinguished expert in telecommunication domain you are skilled in understanding and classifying 3GPP techincal documents. Please help user to classify text into 3GPP working group. Give answer in this format: {\"WORKING GROUP\": \"working group name\"}. Do not include any other information.\nClassify the following text, extracted from a 3GPP technical document, into one of the 3GPP working groups. You MUST select ONE working group name from this list: {'CT1', 'CT3', 'CT4', 'CT6', 'RAN1', 'RAN2', 'RAN3', 'RAN4', 'RAN5', 'RAN_AH1', 'SA1', 'SA2', 'SA3', 'SA4', 'SA5', 'SA6'}.\n\n###TEXT:\n{An abbreviation defined in the present document takes precedence over the definition of the same abbreviation, if any, in 3GPP TR 21.905 . NPN Non-Public Network; SNPN Stand-alone Non-Public Network; 4 Concepts and background: General: A Non-Public Network (NPN) is a 5GS deployed for non-public use, see TS 23.501 . In contrast to public networks that offer mobile network services to the general public, non-public networks are intended for the sole use of a private entity such as a college or an enterprise. Non-public networks may be deployed on the entity’s defined premises such as a campus or a factory to provide coverage within a specific geographic area. Non-public networks may be deployed in a variety of configurations, utilising both virtual and physical network functions, see TS 22.261 . Specifically, see TS 23.501 , an NPN may be deployed as: - a Stand-alone Non-Public Network (SNPN), i.e. operated by an NPN operator and not relying on network functions provided by a PLMN, or - a Public network integrated NPN, i.e. a non-public network deployed with the support of a PLMN. From the view of 5G-ACIA, non-public networks can be desirable for several reasons, see clause 4 of : - High quality-of-service requirements - High security requirements, met by dedicated security credentials - Isolation from other networks, as a form of protection against malfunctions in the public mobile network. Also, isolation may be desirable for reasons of performance, security, privacy, and safety - Accountability. A non-public network makes it easier to identify responsibility for availability, maintenance, and operation Management of stand-alone non-public networks: An SNPN is deployed as an independent, isolated network. As shown in figure 4.2-1, all SNPN network functions are located inside the logical perimeter of the defined premises (e.g.}\n",
+      "target": "SA5",
+      "messages": [
+        {
+          "id": "NN7BcGczhnEF9Mmts3cUYa",
+          "content": "As a distinguished expert in telecommunication domain you are skilled in understanding and classifying 3GPP techincal documents. Please help user to classify text into 3GPP working group. Give answer in this format: {\"WORKING GROUP\": \"working group name\"}. Do not include any other information.\nClassify the following text, extracted from a 3GPP technical document, into one of the 3GPP working groups. You MUST select ONE working group name from this list: {'CT1', 'CT3', 'CT4', 'CT6', 'RAN1', 'RAN2', 'RAN3', 'RAN4', 'RAN5', 'RAN_AH1', 'SA1', 'SA2', 'SA3', 'SA4', 'SA5', 'SA6'}.\n\n###TEXT:\n{An abbreviation defined in the present document takes precedence over the definition of the same abbreviation, if any, in 3GPP TR 21.905 . NPN Non-Public Network; SNPN Stand-alone Non-Public Network; 4 Concepts and background: General: A Non-Public Network (NPN) is a 5GS deployed for non-public use, see TS 23.501 . In contrast to public networks that offer mobile network services to the general public, non-public networks are intended for the sole use of a private entity such as a college or an enterprise. Non-public networks may be deployed on the entity’s defined premises such as a campus or a factory to provide coverage within a specific geographic area. Non-public networks may be deployed in a variety of configurations, utilising both virtual and physical network functions, see TS 22.261 . Specifically, see TS 23.501 , an NPN may be deployed as: - a Stand-alone Non-Public Network (SNPN), i.e. operated by an NPN operator and not relying on network functions provided by a PLMN, or - a Public network integrated NPN, i.e. a non-public network deployed with the support of a PLMN. From the view of 5G-ACIA, non-public networks can be desirable for several reasons, see clause 4 of : - High quality-of-service requirements - High security requirements, met by dedicated security credentials - Isolation from other networks, as a form of protection against malfunctions in the public mobile network. Also, isolation may be desirable for reasons of performance, security, privacy, and safety - Accountability. A non-public network makes it easier to identify responsibility for availability, maintenance, and operation Management of stand-alone non-public networks: An SNPN is deployed as an independent, isolated network. As shown in figure 4.2-1, all SNPN network functions are located inside the logical perimeter of the defined premises (e.g.}\n",
+          "source": "input",
+          "role": "user"
+        },
+        {
+          "id": "WqewDLkb7rk9YvHrjYvVC7",
+          "content": "{\"WORKING GROUP\": \"SA6\"}",
+          "source": "generate",
+          "role": "assistant",
+          "model": "allenai/olmo-3.1-32b-instruct"
+        }
+      ],
+      "output": {
+        "model": "allenai/olmo-3.1-32b-instruct",
+        "choices": [
+          {
+            "message": {
+              "id": "WqewDLkb7rk9YvHrjYvVC7",
+              "content": "{\"WORKING GROUP\": \"SA6\"}",
+              "source": "generate",
+              "role": "assistant",
+              "model": "allenai/olmo-3.1-32b-instruct"
+            },
+            "stop_reason": "stop"
+          }
+        ],
+        "completion": "{\"WORKING GROUP\": \"SA6\"}",
+        "usage": {
+          "input_tokens": 645,
+          "output_tokens": 10,
+          "total_tokens": 655,
+          "input_tokens_cache_read": 0,
+          "reasoning_tokens": 0
+        },
+        "time": 0.3857474579999689
+      },
+      "scores": {
+        "pattern": {
+          "value": "I",
+          "answer": "SA6",
+          "explanation": "{\"WORKING GROUP\": \"SA6\"}",
+          "history": []
+        }
+      },
+      "metadata": {},
+      "store": {},
+      "events": [
+        {
+          "uuid": "nezGeNQVgy2ctn9P2Xgdnf",
+          "span_id": "5049a368b0b94715b785ceca1bb27821",
+          "timestamp": "2026-01-11T00:03:12.540500+00:00",
+          "working_start": 9308.11988525,
+          "event": "span_begin",
+          "id": "5049a368b0b94715b785ceca1bb27821",
+          "type": "init",
+          "name": "init"
+        },
+        {
+          "uuid": "5pZ8e5WJ9kBrEwT3rKxvLj",
+          "span_id": "5049a368b0b94715b785ceca1bb27821",
+          "timestamp": "2026-01-11T00:03:12.541589+00:00",
+          "working_start": 9308.120973666,
+          "event": "sample_init",
+          "sample": {
+            "input": "attachment://2e20e4372e32faffb92fff70275eb12f",
+            "target": "SA5",
+            "id": 1
+          },
+          "state": {
+            "messages": [
+              {
+                "id": "NN7BcGczhnEF9Mmts3cUYa",
+                "content": "attachment://2e20e4372e32faffb92fff70275eb12f",
+                "source": "input",
+                "role": "user"
+              }
+            ],
+            "tools": [],
+            "tool_choice": null,
+            "store": {},
+            "output": {
+              "model": "openrouter/allenai/olmo-3.1-32b-instruct",
+              "choices": [],
+              "completion": ""
+            },
+            "completed": false,
+            "metadata": {}
+          }
+        },
+        {
+          "uuid": "mV5YGL3skjqRxnf2dHSM2S",
+          "span_id": "5049a368b0b94715b785ceca1bb27821",
+          "timestamp": "2026-01-11T00:03:12.542905+00:00",
+          "working_start": 9308.122290125,
+          "event": "span_end",
+          "id": "5049a368b0b94715b785ceca1bb27821"
+        },
+        {
+          "uuid": "8Qa7ycpC78PyQLVMxeWoLq",
+          "span_id": "2fc92c624278405a9754e054a5e2991c",
+          "timestamp": "2026-01-11T00:03:12.545540+00:00",
+          "working_start": 0.0015837920000194572,
+          "event": "span_begin",
+          "id": "2fc92c624278405a9754e054a5e2991c",
+          "type": "solvers",
+          "name": "solvers"
+        },
+        {
+          "uuid": "BH3jbRbaay4346utnyRaFe",
+          "span_id": "23925647a66b4701bee630e6c5602026",
+          "timestamp": "2026-01-11T00:03:12.547096+00:00",
+          "working_start": 0.003140291999443434,
+          "event": "span_begin",
+          "id": "23925647a66b4701bee630e6c5602026",
+          "parent_id": "2fc92c624278405a9754e054a5e2991c",
+          "type": "solver",
+          "name": "generate"
+        },
+        {
+          "uuid": "ELVt8BREAuQEBbaKwRfQhC",
+          "span_id": "23925647a66b4701bee630e6c5602026",
+          "timestamp": "2026-01-11T00:03:12.548556+00:00",
+          "working_start": 0.004599624999173102,
+          "event": "model",
+          "model": "openrouter/allenai/olmo-3.1-32b-instruct",
+          "input": [
+            {
+              "id": "NN7BcGczhnEF9Mmts3cUYa",
+              "content": "As a distinguished expert in telecommunication domain you are skilled in understanding and classifying 3GPP techincal documents. Please help user to classify text into 3GPP working group. Give answer in this format: {\"WORKING GROUP\": \"working group name\"}. Do not include any other information.\nClassify the following text, extracted from a 3GPP technical document, into one of the 3GPP working groups. You MUST select ONE working group name from this list: {'CT1', 'CT3', 'CT4', 'CT6', 'RAN1', 'RAN2', 'RAN3', 'RAN4', 'RAN5', 'RAN_AH1', 'SA1', 'SA2', 'SA3', 'SA4', 'SA5', 'SA6'}.\n\n###TEXT:\n{An abbreviation defined in the present document takes precedence over the definition of the same abbreviation, if any, in 3GPP TR 21.905 . NPN Non-Public Network; SNPN Stand-alone Non-Public Network; 4 Concepts and background: General: A Non-Public Network (NPN) is a 5GS deployed for non-public use, see TS 23.501 . In contrast to public networks that offer mobile network services to the general public, non-public networks are intended for the sole use of a private entity such as a college or an enterprise. Non-public networks may be deployed on the entity’s defined premises such as a campus or a factory to provide coverage within a specific geographic area. Non-public networks may be deployed in a variety of configurations, utilising both virtual and physical network functions, see TS 22.261 . Specifically, see TS 23.501 , an NPN may be deployed as: - a Stand-alone Non-Public Network (SNPN), i.e. operated by an NPN operator and not relying on network functions provided by a PLMN, or - a Public network integrated NPN, i.e. a non-public network deployed with the support of a PLMN. From the view of 5G-ACIA, non-public networks can be desirable for several reasons, see clause 4 of : - High quality-of-service requirements - High security requirements, met by dedicated security credentials - Isolation from other networks, as a form of protection against malfunctions in the public mobile network. Also, isolation may be desirable for reasons of performance, security, privacy, and safety - Accountability. A non-public network makes it easier to identify responsibility for availability, maintenance, and operation Management of stand-alone non-public networks: An SNPN is deployed as an independent, isolated network. As shown in figure 4.2-1, all SNPN network functions are located inside the logical perimeter of the defined premises (e.g.}\n",
+              "source": "input",
+              "role": "user"
+            }
+          ],
+          "tools": [],
+          "tool_choice": "none",
+          "config": {},
+          "output": {
+            "model": "allenai/olmo-3.1-32b-instruct",
+            "choices": [
+              {
+                "message": {
+                  "id": "WqewDLkb7rk9YvHrjYvVC7",
+                  "content": "{\"WORKING GROUP\": \"SA6\"}",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "allenai/olmo-3.1-32b-instruct"
+                },
+                "stop_reason": "stop"
+              }
+            ],
+            "completion": "{\"WORKING GROUP\": \"SA6\"}",
+            "usage": {
+              "input_tokens": 645,
+              "output_tokens": 10,
+              "total_tokens": 655,
+              "input_tokens_cache_read": 0,
+              "reasoning_tokens": 0
+            },
+            "time": 0.3857474579999689
+          },
+          "call": {
+            "request": {
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "attachment://2e20e4372e32faffb92fff70275eb12f"
+                }
+              ],
+              "tools": null,
+              "tool_choice": null,
+              "extra_headers": {
+                "x-irid": "UoaPdoq7yGPmQTBwAxfPwJ"
+              },
+              "model": "allenai/olmo-3.1-32b-instruct"
+            },
+            "response": {
+              "id": "gen-1768089792-yRmeFlHH20yQxk608DRQ",
+              "choices": [
+                {
+                  "finish_reason": "stop",
+                  "index": 0,
+                  "logprobs": null,
+                  "message": {
+                    "content": "{\"WORKING GROUP\": \"SA6\"}",
+                    "refusal": null,
+                    "role": "assistant",
+                    "annotations": null,
+                    "audio": null,
+                    "function_call": null,
+                    "tool_calls": null,
+                    "reasoning": null
+                  },
+                  "native_finish_reason": "stop"
+                }
+              ],
+              "created": 1768089792,
+              "model": "allenai/olmo-3.1-32b-instruct",
+              "object": "chat.completion",
+              "service_tier": null,
+              "system_fingerprint": null,
+              "usage": {
+                "completion_tokens": 10,
+                "prompt_tokens": 645,
+                "total_tokens": 655,
+                "completion_tokens_details": {
+                  "accepted_prediction_tokens": null,
+                  "audio_tokens": null,
+                  "reasoning_tokens": 0,
+                  "rejected_prediction_tokens": null,
+                  "image_tokens": 0
+                },
+                "prompt_tokens_details": {
+                  "audio_tokens": 0,
+                  "cached_tokens": 0,
+                  "video_tokens": 0
+                },
+                "cost": 0.000135,
+                "is_byok": false,
+                "cost_details": {
+                  "upstream_inference_cost": null,
+                  "upstream_inference_prompt_cost": 0.000129,
+                  "upstream_inference_completions_cost": 6e-6
+                }
+              },
+              "provider": "DeepInfra"
+            },
+            "time": 0.3857474579999689
+          },
+          "completed": "2026-01-11T00:03:12.943187+00:00",
+          "working_time": 0.3857474579999689
+        },
+        {
+          "uuid": "i4z2r9k4t4XKmgTVcGS3Gm",
+          "span_id": "23925647a66b4701bee630e6c5602026",
+          "timestamp": "2026-01-11T00:03:12.943399+00:00",
+          "working_start": 0.39066554099917994,
+          "event": "state",
+          "changes": [
+            {
+              "op": "add",
+              "path": "/output/time",
+              "value": 0.3857474579999689
+            },
+            {
+              "op": "add",
+              "path": "/output/usage",
+              "value": {
+                "input_tokens": 645,
+                "output_tokens": 10,
+                "total_tokens": 655,
+                "input_tokens_cache_read": 0,
+                "reasoning_tokens": 0
+              }
+            },
+            {
+              "op": "replace",
+              "path": "/output/model",
+              "value": "allenai/olmo-3.1-32b-instruct",
+              "replaced": "openrouter/allenai/olmo-3.1-32b-instruct"
+            },
+            {
+              "op": "replace",
+              "path": "/output/completion",
+              "value": "{\"WORKING GROUP\": \"SA6\"}",
+              "replaced": ""
+            },
+            {
+              "op": "add",
+              "path": "/output/choices/0",
+              "value": {
+                "message": {
+                  "id": "WqewDLkb7rk9YvHrjYvVC7",
+                  "content": "{\"WORKING GROUP\": \"SA6\"}",
+                  "source": "generate",
+                  "role": "assistant",
+                  "model": "allenai/olmo-3.1-32b-instruct"
+                },
+                "stop_reason": "stop"
+              }
+            },
+            {
+              "op": "add",
+              "path": "/messages/1",
+              "value": {
+                "id": "WqewDLkb7rk9YvHrjYvVC7",
+                "content": "{\"WORKING GROUP\": \"SA6\"}",
+                "source": "generate",
+                "role": "assistant",
+                "model": "allenai/olmo-3.1-32b-instruct"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "9HqPgrYyEkKA52fENQiTHq",
+          "span_id": "23925647a66b4701bee630e6c5602026",
+          "timestamp": "2026-01-11T00:03:12.946370+00:00",
+          "working_start": 0.3936370829997031,
+          "event": "span_end",
+          "id": "23925647a66b4701bee630e6c5602026"
+        },
+        {
+          "uuid": "NxnD8RmqqpNdDtPmGn8cCy",
+          "span_id": "2fc92c624278405a9754e054a5e2991c",
+          "timestamp": "2026-01-11T00:03:12.950936+00:00",
+          "working_start": 0.39820324899847037,
+          "event": "span_end",
+          "id": "2fc92c624278405a9754e054a5e2991c"
+        },
+        {
+          "uuid": "2pL7HkphMDa9kCKB3EkCQV",
+          "span_id": "c0530c936fb248b4a31c11a4a959a190",
+          "timestamp": "2026-01-11T00:03:12.954408+00:00",
+          "working_start": 0.40167437399941264,
+          "event": "span_begin",
+          "id": "c0530c936fb248b4a31c11a4a959a190",
+          "type": "scorers",
+          "name": "scorers"
+        },
+        {
+          "uuid": "5JHgbQNjmp4ot7FXXeux7k",
+          "span_id": "e7eb1b5c5a7649e9bde12a3a6908d87b",
+          "timestamp": "2026-01-11T00:03:12.959138+00:00",
+          "working_start": 0.40640679099851695,
+          "event": "span_begin",
+          "id": "e7eb1b5c5a7649e9bde12a3a6908d87b",
+          "parent_id": "c0530c936fb248b4a31c11a4a959a190",
+          "type": "scorer",
+          "name": "pattern"
+        },
+        {
+          "uuid": "GPtNXUbCX7woSytXpJ5R9j",
+          "span_id": "e7eb1b5c5a7649e9bde12a3a6908d87b",
+          "timestamp": "2026-01-11T00:03:12.962649+00:00",
+          "working_start": 0.4099157489999925,
+          "event": "score",
+          "score": {
+            "value": "I",
+            "answer": "SA6",
+            "explanation": "{\"WORKING GROUP\": \"SA6\"}",
+            "history": []
+          },
+          "target": "SA5",
+          "intermediate": false
+        },
+        {
+          "uuid": "UvCAWFoY7yEvXWz6U8qbYv",
+          "span_id": "e7eb1b5c5a7649e9bde12a3a6908d87b",
+          "timestamp": "2026-01-11T00:03:12.967262+00:00",
+          "working_start": 0.41452841599857493,
+          "event": "span_end",
+          "id": "e7eb1b5c5a7649e9bde12a3a6908d87b"
+        },
+        {
+          "uuid": "YncwnHScgYpvNNLxCJW7TL",
+          "span_id": "c0530c936fb248b4a31c11a4a959a190",
+          "timestamp": "2026-01-11T00:03:12.970253+00:00",
+          "working_start": 0.41751991599994653,
+          "event": "span_end",
+          "id": "c0530c936fb248b4a31c11a4a959a190"
+        }
+      ],
+      "model_usage": {
+        "openrouter/allenai/olmo-3.1-32b-instruct": {
+          "input_tokens": 645,
+          "output_tokens": 10,
+          "total_tokens": 655,
+          "input_tokens_cache_read": 0,
+          "reasoning_tokens": 0
+        }
+      },
+      "started_at": "2026-01-11T00:03:12.543961+00:00",
+      "completed_at": "2026-01-11T00:03:12.974776+00:00",
+      "total_time": 0.431,
+      "working_time": 0.422,
+      "uuid": "N5QYjUZLzeKs9BPquPhtbu",
+      "error_retries": [],
+      "attachments": {
+        "2e20e4372e32faffb92fff70275eb12f": "As a distinguished expert in telecommunication domain you are skilled in understanding and classifying 3GPP techincal documents. Please help user to classify text into 3GPP working group. Give answer in this format: {\"WORKING GROUP\": \"working group name\"}. Do not include any other information.\nClassify the following text, extracted from a 3GPP technical document, into one of the 3GPP working groups. You MUST select ONE working group name from this list: {'CT1', 'CT3', 'CT4', 'CT6', 'RAN1', 'RAN2', 'RAN3', 'RAN4', 'RAN5', 'RAN_AH1', 'SA1', 'SA2', 'SA3', 'SA4', 'SA5', 'SA6'}.\n\n###TEXT:\n{An abbreviation defined in the present document takes precedence over the definition of the same abbreviation, if any, in 3GPP TR 21.905 . NPN Non-Public Network; SNPN Stand-alone Non-Public Network; 4 Concepts and background: General: A Non-Public Network (NPN) is a 5GS deployed for non-public use, see TS 23.501 . In contrast to public networks that offer mobile network services to the general public, non-public networks are intended for the sole use of a private entity such as a college or an enterprise. Non-public networks may be deployed on the entity’s defined premises such as a campus or a factory to provide coverage within a specific geographic area. Non-public networks may be deployed in a variety of configurations, utilising both virtual and physical network functions, see TS 22.261 . Specifically, see TS 23.501 , an NPN may be deployed as: - a Stand-alone Non-Public Network (SNPN), i.e. operated by an NPN operator and not relying on network functions provided by a PLMN, or - a Public network integrated NPN, i.e. a non-public network deployed with the support of a PLMN. From the view of 5G-ACIA, non-public networks can be desirable for several reasons, see clause 4 of : - High quality-of-service requirements - High security requirements, met by dedicated security credentials - Isolation from other networks, as a form of protection against malfunctions in the public mobile network. Also, isolation may be desirable for reasons of performance, security, privacy, and safety - Accountability. A non-public network makes it easier to identify responsibility for availability, maintenance, and operation Management of stand-alone non-public networks: An SNPN is deployed as an independent, isolated network. As shown in figure 4.2-1, all SNPN network functions are located inside the logical perimeter of the defined premises (e.g.}\n"
+      }
+    }
+  ],
+  "reductions": [
+    {
+      "scorer": "pattern",
+      "samples": [
+        {
+          "value": 0,
+          "answer": "SA6",
+          "explanation": "{\"WORKING GROUP\": \"SA6\"}",
+          "history": [],
+          "sample_id": 1
+        }
+      ]
+    }
+  ]
+}
