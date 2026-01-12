@@ -51,6 +51,15 @@ jobs:
           python .github/scripts/sync_to_huggingface.py \
             --files "${{ steps.find-parquet.outputs.files }}"
 
+      - name: Trigger ot_hub deployment
+        if: steps.find-parquet.outputs.files != ''
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.OT_HUB_DISPATCH_TOKEN }}
+          repository: gsma-research/ot_hub
+          event-type: leaderboard-updated
+          client-payload: '{"trigger": "manual-sync"}'
+
   # PR-based approval sync
   handle-approval:
     runs-on: ubuntu-latest
@@ -142,6 +151,14 @@ jobs:
               repo: context.repo.repo,
               body: `:rocket: **Submission approved, merged, and synced!**\n\nYour evaluation has been:\n- :white_check_mark: Merged to the repository (trajectories archived)\n- :white_check_mark: Synced to [GSMA/leaderboard](https://huggingface.co/datasets/GSMA/leaderboard) on HuggingFace\n\nThank you for your contribution!`
             });
+
+      - name: Trigger ot_hub deployment
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.OT_HUB_DISPATCH_TOKEN }}
+          repository: gsma-research/ot_hub
+          event-type: leaderboard-updated
+          client-payload: '{"pr_number": "${{ github.event.pull_request.number }}"}'
 
   handle-changes-requested:
     runs-on: ubuntu-latest
