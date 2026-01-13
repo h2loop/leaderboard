@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas pyarrow datasets huggingface_hub
+          pip install pandas pyarrow datasets huggingface_hub numpy scipy
 
       - name: Find parquet files
         id: find-parquet
@@ -50,6 +50,13 @@ jobs:
         run: |
           python .github/scripts/sync_to_huggingface.py \
             --files "${{ steps.find-parquet.outputs.files }}"
+
+      - name: Calculate and update TCI
+        if: steps.find-parquet.outputs.files != ''
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python .github/scripts/calculate_tci.py
 
       - name: Trigger ot_hub deployment
         if: steps.find-parquet.outputs.files != ''
@@ -84,7 +91,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas pyarrow datasets huggingface_hub
+          pip install pandas pyarrow datasets huggingface_hub numpy scipy
 
       - name: Find parquet files
         id: find-parquet
@@ -104,6 +111,13 @@ jobs:
         run: |
           python .github/scripts/sync_to_huggingface.py \
             --files "${{ steps.find-parquet.outputs.files }}"
+
+      - name: Calculate and update TCI
+        if: steps.find-parquet.outputs.files != ''
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python .github/scripts/calculate_tci.py
 
       - name: Merge PR and archive submission
         uses: actions/github-script@v7
