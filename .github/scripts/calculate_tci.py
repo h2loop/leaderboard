@@ -42,20 +42,24 @@ def parse_model_provider(combined: str) -> tuple[str, str]:
     return combined, "Unknown"
 
 
-def extract_score(value: list | None) -> tuple[float | None, float | None]:
+def extract_score(value) -> tuple[float | None, float | None]:
     """Extract score and stderr from [score, stderr, n_samples] format.
 
     Args:
         value: Array in format [score, stderr, n_samples] or None
+               Can be a list, tuple, or numpy array.
 
     Returns:
         Tuple of (score, stderr)
     """
-    if value is None or not isinstance(value, (list, tuple)) or len(value) < 2:
+    if value is None:
         return None, None
+    # Check if value is array-like (has length and is indexable)
     try:
+        if len(value) < 2:
+            return None, None
         return float(value[0]), float(value[1])
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, IndexError):
         return None, None
 
 
