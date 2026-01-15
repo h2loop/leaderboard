@@ -112,6 +112,64 @@ jobs:
           python .github/scripts/sync_to_huggingface.py \
             --files "${{ steps.find-parquet.outputs.files }}"
 
+      - name: Post sync report
+        if: steps.find-parquet.outputs.files != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const prNumber = context.payload.pull_request.number;
+
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync('sync_report.json', 'utf8'));
+            } catch (e) {
+              report = {};
+            }
+
+            let body = '### Sync Report\n\n';
+
+            if (report.new_models && report.new_models.length > 0) {
+              body += '**New models added:**\n';
+              for (const model of report.new_models) {
+                body += `- ${model}\n`;
+              }
+              body += '\n';
+            }
+
+            if (report.updated_models && report.updated_models.length > 0) {
+              body += '**Models updated:**\n';
+              for (const model of report.updated_models) {
+                body += `- ${model}\n`;
+              }
+              body += '\n';
+            }
+
+            if (report.updated_scores && report.updated_scores.length > 0) {
+              body += '**Scores updated:**\n';
+              for (const score of report.updated_scores) {
+                body += `- ${score}\n`;
+              }
+              body += '\n';
+            }
+
+            if (report.preserved_scores && report.preserved_scores.length > 0) {
+              body += '**Existing scores preserved:**\n';
+              for (const score of report.preserved_scores) {
+                body += `- ${score}\n`;
+              }
+            }
+
+            // Only post if there's something to report
+            if (body !== '### Sync Report\n\n') {
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
+
       - name: Calculate and update TCI
         if: steps.find-parquet.outputs.files != ''
         env:
