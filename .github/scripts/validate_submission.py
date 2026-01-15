@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Validate leaderboard submission files with sample count verification."""
+"""Validate leaderboard submission files with sample count verification.
+
+Supports partial submissions where not all 4 benchmarks need to be present.
+The workflow will generate parquet files from JSON trajectories, so parquet
+files are optional in the submission.
+"""
 
 from __future__ import annotations
 
@@ -183,17 +188,18 @@ def validate_sample_counts(
                     f"Possible duplicate evaluations or wrong dataset split."
                 )
 
-    # Check if any benchmarks are completely missing
+    # Note: We no longer fail for missing benchmarks - partial submissions are allowed
+    # Only record missing benchmarks for informational purposes
     for benchmark in expected_counts:
         if benchmark not in benchmark_samples and expected_counts[benchmark] is not None:
             if benchmark not in sample_details:
                 sample_details[benchmark] = {
                     "expected": expected_counts[benchmark],
                     "actual": 0,
-                    "valid": False,
+                    "valid": True,  # Not a failure - just not submitted
+                    "not_submitted": True,
                 }
-                checks["sample_count_valid"] = False
-                errors.append(f"{benchmark}: No trajectory files found for this benchmark.")
+                # Don't mark as invalid - partial submissions are OK
 
     return checks, sample_details, errors
 
@@ -385,10 +391,23 @@ def main() -> None:
         result["sample_details"] = sample_details
         result["errors"].extend(count_errors)
 
+        # Check that at least one valid benchmark was found
+        submitted_benchmarks = [
+            b for b, d in sample_details.items()
+            if d.get("actual", 0) > 0 and not d.get("not_submitted", False)
+        ]
+        if not submitted_benchmarks:
+            result["errors"].append(
+                "No valid benchmark trajectories found. "
+                "At least one benchmark (teleqna, telelogs, telemath, 3gpp_tsg) required."
+            )
+
     # Check that we found required files
+    # Note: Parquet is now optional - workflow will generate it from trajectories
     if not parquet_found:
-        result["checks"]["parquet_exists"] = False
-        result["errors"].append("No parquet file found in submission")
+        # Don't fail - workflow will generate parquet from JSON trajectories
+        result["checks"]["parquet_exists"] = True  # Will be generated
+        # No error - this is expected for new submission flow
 
     if not json_files:
         result["checks"]["json_valid"] = False

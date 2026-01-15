@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Sync validated submissions to HuggingFace dataset."""
+"""Sync validated submissions to HuggingFace dataset with intelligent merge.
+
+Supports partial submissions by:
+- Only updating benchmark columns that are submitted
+- Preserving existing scores for non-submitted benchmarks
+- Generating a sync report showing what was updated
+"""
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -13,6 +20,7 @@ from datasets import Dataset
 
 
 DATASET_REPO = "GSMA/leaderboard"
+BENCHMARK_COLUMNS = ["teleqna", "telelogs", "telemath", "3gpp_tsg"]
 
 
 def load_existing_dataset(token: str) -> pd.DataFrame:
@@ -38,29 +46,103 @@ def load_existing_dataset(token: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def merge_dataframes(existing_df: pd.DataFrame, new_df: pd.DataFrame) -> pd.DataFrame:
-    """Merge new entries with existing data.
-
-    Updates existing rows or adds new ones based on model name.
+def is_null_score(value) -> bool:
+    """Check if a score value is null/missing.
 
     Args:
-        existing_df: Existing leaderboard data
+        value: Score value to check (can be None, list, array, etc.)
+
+    Returns:
+        True if the score is considered null/missing
+    """
+    if value is None:
+        return True
+    if pd.isna(value) if not isinstance(value, (list, tuple)) else False:
+        return True
+    # Check for empty lists/arrays
+    if isinstance(value, (list, tuple)) and len(value) == 0:
+        return True
+    return False
+
+
+def merge_with_preservation(
+    existing_df: pd.DataFrame,
+    new_df: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict]:
+    """Merge new entries with existing data, intelligently preserving scores.
+
+    Logic:
+    - If model EXISTS in existing_df:
+        - For each benchmark column in new_df:
+            - If new value is not null: update (overwrite submitted benchmarks)
+            - If new value is null: keep existing value
+    - If model is NEW: add entire row
+
+    Args:
+        existing_df: Current leaderboard data
         new_df: New submission data
 
     Returns:
-        Merged DataFrame with duplicates resolved
+        Tuple of (merged DataFrame, sync report dict)
     """
+    sync_report: dict = {
+        "new_models": [],
+        "updated_models": [],
+        "updated_scores": [],
+        "preserved_scores": [],
+    }
+
     if existing_df.empty:
-        return new_df
+        sync_report["new_models"] = new_df["model"].tolist()
+        return new_df.copy(), sync_report
 
     if new_df.empty:
-        return existing_df
+        return existing_df.copy(), sync_report
 
-    # Combine and deduplicate by model name (keep new version)
-    combined_df = pd.concat([existing_df, new_df], ignore_index=True)
-    combined_df = combined_df.drop_duplicates(subset=["model"], keep="last")
+    result_df = existing_df.copy()
+    existing_models = set(existing_df["model"].tolist())
 
-    return combined_df
+    for _, new_row in new_df.iterrows():
+        model_name = new_row["model"]
+
+        if model_name in existing_models:
+            # Model EXISTS - intelligent merge
+            idx = result_df[result_df["model"] == model_name].index[0]
+
+            model_updated = False
+            for col in BENCHMARK_COLUMNS:
+                new_val = new_row.get(col)
+                existing_val = result_df.at[idx, col]
+
+                new_is_null = is_null_score(new_val)
+                existing_is_null = is_null_score(existing_val)
+
+                if not new_is_null:
+                    # New submission has a score for this benchmark - UPDATE
+                    result_df.at[idx, col] = new_val
+                    model_updated = True
+
+                    if existing_is_null:
+                        sync_report["updated_scores"].append(f"{model_name}:{col} (new)")
+                    else:
+                        sync_report["updated_scores"].append(f"{model_name}:{col} (updated)")
+                elif not existing_is_null:
+                    # New is null but existing has a value - PRESERVE
+                    sync_report["preserved_scores"].append(f"{model_name}:{col}")
+
+            # Update date if any scores were updated
+            if model_updated:
+                if "date" in new_row and new_row["date"]:
+                    result_df.at[idx, "date"] = new_row["date"]
+                sync_report["updated_models"].append(model_name)
+
+        else:
+            # Model is NEW - add entire row
+            new_row_df = pd.DataFrame([new_row])
+            result_df = pd.concat([result_df, new_row_df], ignore_index=True)
+            sync_report["new_models"].append(model_name)
+
+    return result_df, sync_report
 
 
 def upload_to_huggingface(df: pd.DataFrame, token: str) -> None:
@@ -137,9 +219,25 @@ def main() -> None:
     existing_df = load_existing_dataset(hf_token)
     print(f"Existing entries: {len(existing_df)}")
 
-    # Merge
-    merged_df = merge_dataframes(existing_df, new_df)
+    # Intelligent merge with preservation
+    merged_df, sync_report = merge_with_preservation(existing_df, new_df)
     print(f"Merged entries: {len(merged_df)}")
+
+    # Log sync report
+    print("\n=== Sync Report ===")
+    if sync_report.get("new_models"):
+        print(f"New models added: {sync_report['new_models']}")
+    if sync_report.get("updated_models"):
+        print(f"Models updated: {sync_report['updated_models']}")
+    if sync_report.get("updated_scores"):
+        print(f"Scores updated: {sync_report['updated_scores']}")
+    if sync_report.get("preserved_scores"):
+        print(f"Scores preserved: {sync_report['preserved_scores']}")
+    print("==================\n")
+
+    # Write sync report for workflow to post as comment
+    with open("sync_report.json", "w") as f:
+        json.dump(sync_report, f, indent=2)
 
     # Upload
     print("Uploading to HuggingFace...")

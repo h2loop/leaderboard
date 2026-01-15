@@ -12,16 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
+      contents: write  # Need write to commit generated parquet
 
     outputs:
       validation_passed: ${{ steps.set-output.outputs.passed }}
 
     steps:
-      - name: Checkout
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}  # Checkout PR branch for committing
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -40,13 +42,71 @@ jobs:
             model_cards/**
             trajectories/**
 
+      - name: Find trajectory directories
+        id: find-trajectories
+        run: |
+          TRAJ_DIRS=""
+          for dir in trajectories/*/; do
+            if [ -d "$dir" ]; then
+              JSON_COUNT=$(find "$dir" -name "*.json" -type f 2>/dev/null | wc -l)
+              if [ "$JSON_COUNT" -gt 0 ]; then
+                TRAJ_DIRS="$TRAJ_DIRS $dir"
+              fi
+            fi
+          done
+          TRAJ_DIRS=$(echo "$TRAJ_DIRS" | xargs)  # Trim whitespace
+          echo "dirs=$TRAJ_DIRS" >> $GITHUB_OUTPUT
+          echo "Found trajectory directories: $TRAJ_DIRS"
+
+      - name: Generate parquet from trajectories
+        id: generate-parquet
+        if: steps.find-trajectories.outputs.dirs != ''
+        run: |
+          GENERATED_FILES=""
+          for dir in ${{ steps.find-trajectories.outputs.dirs }}; do
+            DIR_NAME=$(basename "$dir")
+            OUTPUT_PATH="model_cards/${DIR_NAME}.parquet"
+
+            # Skip if parquet already exists
+            if [ -f "$OUTPUT_PATH" ]; then
+              echo "Parquet already exists: $OUTPUT_PATH"
+              continue
+            fi
+
+            echo "Generating parquet for $dir..."
+            python .github/scripts/json_to_parquet.py \
+              --trajectory-dir "$dir" \
+              --output-dir "model_cards/"
+
+            if [ -f "$OUTPUT_PATH" ]; then
+              GENERATED_FILES="$GENERATED_FILES $OUTPUT_PATH"
+              echo "Generated: $OUTPUT_PATH"
+            fi
+          done
+          GENERATED_FILES=$(echo "$GENERATED_FILES" | xargs)  # Trim whitespace
+          echo "generated=$GENERATED_FILES" >> $GITHUB_OUTPUT
+
+      - name: Commit generated parquet
+        if: steps.generate-parquet.outputs.generated != ''
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add model_cards/*.parquet
+          git diff --staged --quiet || git commit -m "chore: Generate parquet from trajectory files"
+          git push || echo "Nothing to push"
+
       - name: Validate submission
         id: validate
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # Include both changed files and generated parquet files
+          ALL_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          if [ -n "${{ steps.generate-parquet.outputs.generated }}" ]; then
+            ALL_FILES="$ALL_FILES ${{ steps.generate-parquet.outputs.generated }}"
+          fi
           python .github/scripts/validate_submission.py \
-            --files "${{ steps.changed-files.outputs.all_changed_files }}"
+            --files "$ALL_FILES"
         continue-on-error: true
 
       - name: Post validation results
@@ -95,12 +155,20 @@ jobs:
             body += `- [${checks.sample_count_valid ? 'x' : ' '}] Sample counts match expected (no --limit)\n`;
 
             if (validation.sample_details && Object.keys(validation.sample_details).length > 0) {
-              body += '\n### Sample Count Details:\n';
-              for (const [benchmark, detail] of Object.entries(validation.sample_details)) {
-                const icon = detail.valid ? ':white_check_mark:' : ':x:';
-                const expected = detail.expected === 'unknown' ? '?' : detail.expected;
-                const skipped = detail.skipped ? ' *(validation skipped)*' : '';
-                body += `- ${icon} **${benchmark}**: ${detail.actual} / ${expected} samples${skipped}\n`;
+              body += '\n### Benchmark Status:\n';
+              const allBenchmarks = ['teleqna', 'telelogs', 'telemath', '3gpp_tsg'];
+              for (const benchmark of allBenchmarks) {
+                const detail = validation.sample_details[benchmark];
+                if (!detail) {
+                  body += `- :grey_question: **${benchmark}**: Not submitted\n`;
+                } else if (detail.not_submitted) {
+                  body += `- :grey_question: **${benchmark}**: Not submitted\n`;
+                } else {
+                  const icon = detail.valid ? ':white_check_mark:' : ':x:';
+                  const expected = detail.expected === 'unknown' ? '?' : detail.expected;
+                  const skipped = detail.skipped ? ' *(validation skipped)*' : '';
+                  body += `- ${icon} **${benchmark}**: ${detail.actual} / ${expected} samples${skipped}\n`;
+                }
               }
             }
 
