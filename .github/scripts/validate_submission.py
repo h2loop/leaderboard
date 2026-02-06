@@ -184,10 +184,10 @@ def validate_sample_counts(
 
     # ALL benchmarks are required — missing benchmarks cause validation failure
     for benchmark in expected_counts:
-        if benchmark not in benchmark_samples and expected_counts[benchmark] is not None:
+        if benchmark not in benchmark_samples:
             if benchmark not in sample_details:
                 sample_details[benchmark] = {
-                    "expected": expected_counts[benchmark],
+                    "expected": expected_counts.get(benchmark) or "unknown",
                     "actual": 0,
                     "valid": False,
                 }
