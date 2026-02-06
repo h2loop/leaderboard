@@ -80,7 +80,7 @@ def load_leaderboard(token: str) -> pd.DataFrame:
             df = df.drop(columns=["__index_level_0__"])
         return df
     except Exception as e:
-        print(f"Error loading dataset: {e}")
+        print(f"Error loading dataset: {type(e).__name__}")
         sys.exit(1)
 
 
