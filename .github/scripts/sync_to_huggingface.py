@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Sync validated submissions to HuggingFace dataset with intelligent merge.
 
-Supports partial submissions by:
-- Only updating benchmark columns that are submitted
-- Preserving existing scores for non-submitted benchmarks
-- Generating a sync report showing what was updated
+- Overwrites submitted benchmark scores
+- Preserves existing scores for non-submitted benchmarks
+- Generates a sync report showing what was updated
 """
 
 from __future__ import annotations
@@ -18,9 +17,9 @@ from pathlib import Path
 import pandas as pd
 from datasets import Dataset
 
+from registry import get_benchmark_columns
 
 DATASET_REPO = "GSMA/leaderboard"
-BENCHMARK_COLUMNS = ["teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables"]
 
 
 def load_existing_dataset(token: str) -> pd.DataFrame:
@@ -101,6 +100,7 @@ def merge_with_preservation(
 
     result_df = existing_df.copy()
     existing_models = set(existing_df["model"].tolist())
+    benchmark_columns = get_benchmark_columns()
 
     for _, new_row in new_df.iterrows():
         model_name = new_row["model"]
@@ -110,7 +110,7 @@ def merge_with_preservation(
             idx = result_df[result_df["model"] == model_name].index[0]
 
             model_updated = False
-            for col in BENCHMARK_COLUMNS:
+            for col in benchmark_columns:
                 new_val = new_row.get(col)
                 existing_val = result_df.at[idx, col]
 
