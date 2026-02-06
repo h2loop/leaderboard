@@ -53,18 +53,15 @@ def fetch_registry_benchmarks() -> list[str]:
     Returns:
         Sorted list of benchmark task names from the evals ``__all__``.
 
-    Falls back to local ``BENCHMARK_HF_COLUMNS`` keys when the fetch fails.
+    Raises:
+        On network or parsing failure — no silent fallback.
     """
-    try:
-        req = urllib.request.Request(REGISTRY_URL)
-        with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS) as resp:
-            source = resp.read().decode()
-        benchmarks = _parse_all_from_source(source)
-        print(f"Registry: fetched {len(benchmarks)} benchmarks from gsma-labs/evals")
-        return sorted(benchmarks)
-    except Exception as exc:
-        print(f"Warning: Failed to fetch registry, using local fallback: {exc}")
-        return sorted(BENCHMARK_HF_COLUMNS.keys())
+    req = urllib.request.Request(REGISTRY_URL)
+    with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS) as resp:
+        source = resp.read().decode()
+    benchmarks = _parse_all_from_source(source)
+    print(f"Registry: fetched {len(benchmarks)} benchmarks from gsma-labs/evals")
+    return sorted(benchmarks)
 
 
 def get_benchmark_to_hf_map() -> dict[str, str]:
