@@ -38,7 +38,7 @@ def load_existing_dataset(token: str) -> pd.DataFrame:
             df = df.drop(columns=["__index_level_0__"])
         return df
     except Exception as e:
-        print(f"Warning: Could not load existing dataset: {e}")
+        print(f"Warning: Could not load existing dataset: {type(e).__name__}")
         return pd.DataFrame()
 
 

@@ -74,7 +74,7 @@ def fetch_expected_sample_counts(token: str | None = None) -> dict[str, int | No
                 if attempt < max_retries - 1:
                     time.sleep(2**attempt)  # Exponential backoff
                     continue
-                print(f"Warning: Could not fetch {benchmark} count after {max_retries} attempts: {e}")
+                print(f"Warning: Could not fetch {benchmark} count after {max_retries} attempts: {type(e).__name__}")
                 expected_counts[benchmark] = None
 
     return expected_counts
