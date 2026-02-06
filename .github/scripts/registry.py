@@ -12,6 +12,7 @@ task names to HF column names (e.g. ``three_gpp`` -> ``3gpp_tsg``).
 from __future__ import annotations
 
 import ast
+import time
 import urllib.request
 
 REGISTRY_URL = (
@@ -31,6 +32,8 @@ BENCHMARK_HF_COLUMNS: dict[str, str] = {
 
 _FETCH_TIMEOUT_SECONDS = 10
 
+_cached_benchmarks: list[str] | None = None
+
 
 def _parse_all_from_source(source: str) -> list[str]:
     """Extract ``__all__`` list from Python source code via AST parsing."""
@@ -39,11 +42,14 @@ def _parse_all_from_source(source: str) -> list[str]:
         if not isinstance(node, ast.Assign):
             continue
         for target in node.targets:
-            if not isinstance(target, ast.Name):
+            if not isinstance(target, ast.Name) or target.id != "__all__":
                 continue
-            if target.id != "__all__":
-                continue
-            return ast.literal_eval(node.value)
+            result = ast.literal_eval(node.value)
+            if not isinstance(result, list) or not result:
+                raise ValueError("__all__ must be a non-empty list")
+            if not all(isinstance(item, str) for item in result):
+                raise ValueError("__all__ must contain only strings")
+            return result
     raise ValueError("No __all__ found in registry source")
 
 
@@ -53,15 +59,37 @@ def fetch_registry_benchmarks() -> list[str]:
     Returns:
         Sorted list of benchmark task names from the evals ``__all__``.
 
-    Raises:
-        On network or parsing failure — no silent fallback.
+    Falls back to local ``BENCHMARK_HF_COLUMNS`` keys when the fetch fails.
+    Results are cached for the lifetime of the process.
     """
-    req = urllib.request.Request(REGISTRY_URL)
-    with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS) as resp:
-        source = resp.read().decode()
-    benchmarks = _parse_all_from_source(source)
-    print(f"Registry: fetched {len(benchmarks)} benchmarks from gsma-labs/evals")
-    return sorted(benchmarks)
+    global _cached_benchmarks
+    if _cached_benchmarks is not None:
+        return list(_cached_benchmarks)
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            req = urllib.request.Request(REGISTRY_URL)
+            with urllib.request.urlopen(req, timeout=_FETCH_TIMEOUT_SECONDS) as resp:
+                source = resp.read().decode()
+            benchmarks = _parse_all_from_source(source)
+            print(f"Registry: fetched {len(benchmarks)} benchmarks from gsma-labs/evals")
+            _cached_benchmarks = sorted(benchmarks)
+            return list(_cached_benchmarks)
+        except Exception as exc:
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            print(
+                f"Warning: Failed to fetch registry after {max_retries} attempts, "
+                f"using local fallback: {type(exc).__name__}"
+            )
+            _cached_benchmarks = sorted(BENCHMARK_HF_COLUMNS.keys())
+            return list(_cached_benchmarks)
+
+    # Unreachable, but satisfies type checker
+    _cached_benchmarks = sorted(BENCHMARK_HF_COLUMNS.keys())
+    return list(_cached_benchmarks)
 
 
 def get_benchmark_to_hf_map() -> dict[str, str]:
