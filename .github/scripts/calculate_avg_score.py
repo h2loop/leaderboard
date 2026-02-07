@@ -2,14 +2,7 @@
 """Calculate average scores for all leaderboard entries and update HuggingFace.
 
 Replaces the IRT-based TCI with a simple arithmetic mean of benchmark scores.
-
-This script is called by the GitHub Action after syncing parquet files to
-HuggingFace. It:
-1. Fetches the current dataset from GSMA/leaderboard
-2. Computes mean(benchmark_scores) for entries with all 5 benchmarks
-3. Stores as [avg_score, 0, 0] array format (matching benchmark columns)
-4. Drops legacy 'tci' column if present
-5. Pushes the updated dataset back to HuggingFace
+Called by the approval-sync workflow after syncing parquet files.
 """
 
 from __future__ import annotations
@@ -24,7 +17,7 @@ DATASET_REPO = "GSMA/leaderboard"
 BENCHMARK_COLUMNS = ["teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables"]
 
 
-def extract_score(value) -> float | None:
+def extract_score(value: object) -> float | None:
     """Extract the primary score from [score, stderr, n_samples] format."""
     if value is None:
         return None
@@ -37,8 +30,8 @@ def extract_score(value) -> float | None:
 def compute_avg_score(row: pd.Series) -> list[float] | None:
     """Compute average score across all benchmarks for a single row.
 
-    Returns [avg, 0, 0] to match the benchmark column array format,
-    or None if any benchmark is missing.
+    Returns [avg, 0, 0] to match benchmark column format, or None if any
+    benchmark is missing.
     """
     scores = [extract_score(row.get(col)) for col in BENCHMARK_COLUMNS]
     missing = [col for col, s in zip(BENCHMARK_COLUMNS, scores) if s is None]
@@ -51,7 +44,7 @@ def compute_avg_score(row: pd.Series) -> list[float] | None:
 
 
 def load_leaderboard(token: str) -> pd.DataFrame:
-    """Load existing leaderboard from HuggingFace."""
+    """Load the leaderboard dataset from HuggingFace, exiting on failure."""
     try:
         ds = load_dataset(DATASET_REPO, split="train", token=token)
         return ds.to_pandas()
