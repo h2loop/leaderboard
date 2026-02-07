@@ -29,8 +29,6 @@ def extract_score(value) -> float | None:
     if value is None:
         return None
     try:
-        if len(value) < 1:
-            return None
         return float(value[0])
     except (TypeError, ValueError, IndexError):
         return None
