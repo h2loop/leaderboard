@@ -54,10 +54,7 @@ def load_leaderboard(token: str) -> pd.DataFrame:
     """Load existing leaderboard from HuggingFace."""
     try:
         ds = load_dataset(DATASET_REPO, split="train", token=token)
-        df = ds.to_pandas()
-        if "__index_level_0__" in df.columns:
-            df = df.drop(columns=["__index_level_0__"])
-        return df
+        return ds.to_pandas()
     except Exception as e:
         print(f"Error loading dataset: {e}")
         sys.exit(1)
