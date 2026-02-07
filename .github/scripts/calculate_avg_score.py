@@ -43,7 +43,10 @@ def compute_avg_score(row: pd.Series) -> list[float] | None:
     or None if any benchmark is missing.
     """
     scores = [extract_score(row.get(col)) for col in BENCHMARK_COLUMNS]
-    if any(s is None for s in scores):
+    missing = [col for col, s in zip(BENCHMARK_COLUMNS, scores) if s is None]
+    if missing:
+        model = row.get("model", "unknown")
+        print(f"Warning: {model} missing benchmarks: {', '.join(missing)}")
         return None
     avg = sum(scores) / len(scores)
     return [avg, 0, 0]
