@@ -73,10 +73,10 @@ def main() -> None:
         print("Dataset is empty, skipping average score calculation")
         sys.exit(0)
 
-    # Drop legacy TCI column if it exists
+    # Archive legacy TCI column if it exists (preserve historical data)
     if "tci" in df.columns:
-        print("Dropping legacy 'tci' column")
-        df = df.drop(columns=["tci"])
+        print("Archiving legacy 'tci' column as 'tci_legacy'")
+        df = df.rename(columns={"tci": "tci_legacy"})
 
     print("Computing average scores...")
     df["avg_score"] = df.apply(compute_avg_score, axis=1)
