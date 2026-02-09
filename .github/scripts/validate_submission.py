@@ -229,7 +229,7 @@ def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
     checks["parquet_exists"] = True
 
     try:
-        df = pd.read_parquet(parquet_path)
+        df = pd.read_parquet(parquet_path, engine="pyarrow")
     except Exception as e:
         errors.append(f"Failed to read parquet: {e}")
         return checks, errors
@@ -259,7 +259,7 @@ def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
     checks["provider_recognized"] = provider_recognized
 
     # Validate score arrays (can be list, tuple, or numpy array from parquet)
-    for col in ["teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables"]:
+    for col in BENCHMARK_TO_HF_CONFIG.values():
         if col not in df.columns:
             continue
         for idx, val in df[col].items():
@@ -301,11 +301,11 @@ def validate_sample_counts_from_parquet(
         if path.suffix != ".parquet" or not path.exists():
             continue
         try:
-            df = pd.read_parquet(path)
+            df = pd.read_parquet(path, engine="pyarrow")
         except Exception:
             continue
 
-        for col in ["teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables"]:
+        for col in BENCHMARK_TO_HF_CONFIG.values():
             if col not in df.columns:
                 continue
             for val in df[col]:
@@ -313,7 +313,17 @@ def validate_sample_counts_from_parquet(
                     continue
                 if isinstance(val, (list, tuple, np.ndarray)) and len(val) >= 3:
                     benchmark_key = column_to_benchmark.get(col, col)
-                    benchmark_samples[benchmark_key] = int(val[2])
+                    try:
+                        count = int(val[2])
+                    except (TypeError, ValueError):
+                        errors.append(f"Invalid sample count in {col}: {val[2]}")
+                        continue
+                    if benchmark_key in benchmark_samples and benchmark_samples[benchmark_key] != count:
+                        errors.append(
+                            f"Inconsistent sample counts for {col}: "
+                            f"{benchmark_samples[benchmark_key]} vs {count}"
+                        )
+                    benchmark_samples[benchmark_key] = count
 
     # Validate counts
     for benchmark, expected in expected_counts.items():
@@ -336,18 +346,18 @@ def validate_sample_counts_from_parquet(
         }
 
         if not is_valid:
-            checks["sample_count_valid"] = False
             if actual_count == 0:
                 sample_details[benchmark]["not_submitted"] = True
                 sample_details[benchmark]["valid"] = True
-                # Re-check: if all remaining are not_submitted, don't fail
-                checks["sample_count_valid"] = True
+                # Do NOT reset checks here — prior failures must persist
             elif actual_count < expected:
+                checks["sample_count_valid"] = False
                 errors.append(
                     f"{benchmark}: Only {actual_count}/{expected} samples evaluated. "
                     f"Did you use --limit? Full benchmark required for submission."
                 )
             elif actual_count > expected:
+                checks["sample_count_valid"] = False
                 errors.append(
                     f"{benchmark}: {actual_count} samples found, expected {expected}. "
                     f"Possible duplicate evaluations or wrong dataset split."
@@ -366,7 +376,7 @@ def validate_sample_counts_from_parquet(
         checks["sample_count_valid"] = False
 
     # Re-evaluate overall validity after processing all benchmarks
-    if any(e for e in errors):
+    if errors:
         checks["sample_count_valid"] = False
 
     return checks, sample_details, errors
@@ -422,6 +432,17 @@ def validate_trajectory_json(json_path: Path) -> tuple[dict[str, bool], list[str
     return checks, errors
 
 
+def _is_safe_path(file_path: str) -> bool:
+    """Check that file path is within expected directories."""
+    path = Path(file_path)
+    parts = path.parts
+    if ".." in parts or any(p.startswith(".") for p in parts):
+        return False
+    if parts and parts[0] not in ("model_cards", "trajectories"):
+        return False
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate leaderboard submission")
     parser.add_argument(
@@ -462,6 +483,10 @@ def main() -> None:
 
     for file_path in files:
         if not file_path:
+            continue
+
+        if not _is_safe_path(file_path):
+            result["errors"].append(f"Rejected path outside allowed directories: {file_path}")
             continue
 
         path = Path(file_path)
