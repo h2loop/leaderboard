@@ -67,6 +67,16 @@ def merge_submissions(
     if new_df.empty:
         return existing_df.copy(), sync_report
 
+    # Align columns: union of both DataFrames, preserving order (existing first)
+    all_columns = list(dict.fromkeys(
+        existing_df.columns.tolist() + new_df.columns.tolist()
+    ))
+    for col in all_columns:
+        if col not in existing_df.columns:
+            existing_df[col] = None
+        if col not in new_df.columns:
+            new_df[col] = None
+
     result_df = existing_df.copy()
     existing_models = set(existing_df["model"].tolist())
 
