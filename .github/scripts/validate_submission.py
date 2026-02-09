@@ -197,7 +197,14 @@ def validate_sample_counts(
                     f"ALL benchmarks are required for submission."
                 )
 
-    return checks, sample_details, errors
+    # Translate keys from task names to HF column names for display
+    benchmark_to_hf = get_benchmark_to_hf_map()
+    display_details = {}
+    for benchmark, detail in sample_details.items():
+        hf_name = benchmark_to_hf.get(benchmark, benchmark)
+        display_details[hf_name] = detail
+
+    return checks, display_details, errors
 
 
 def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
