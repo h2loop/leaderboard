@@ -270,6 +270,108 @@ def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
     return checks, errors
 
 
+def validate_sample_counts_from_parquet(
+    files: list[str],
+    expected_counts: dict[str, int | None],
+) -> tuple[dict[str, bool], dict[str, dict], list[str]]:
+    """Validate sample counts from parquet score arrays.
+
+    For parquet-only submissions, each benchmark column stores
+    [score, stderr, n_samples]. Extract n_samples and compare
+    against expected counts from HuggingFace.
+
+    Args:
+        files: List of file paths from the submission.
+        expected_counts: Dict of benchmark -> expected sample count.
+
+    Returns:
+        Tuple of (check_dict, sample_details_dict, errors_list)
+    """
+    checks = {"sample_count_valid": True}
+    sample_details: dict[str, dict] = {}
+    errors: list[str] = []
+
+    # Column name -> benchmark key mapping (reverse of BENCHMARK_TO_HF_CONFIG)
+    column_to_benchmark = {v: k for k, v in BENCHMARK_TO_HF_CONFIG.items()}
+
+    # Read all parquet files
+    benchmark_samples: dict[str, int] = {}
+    for file_path in files:
+        path = Path(file_path)
+        if path.suffix != ".parquet" or not path.exists():
+            continue
+        try:
+            df = pd.read_parquet(path)
+        except Exception:
+            continue
+
+        for col in ["teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables"]:
+            if col not in df.columns:
+                continue
+            for val in df[col]:
+                if val is None:
+                    continue
+                if isinstance(val, (list, tuple, np.ndarray)) and len(val) >= 3:
+                    benchmark_key = column_to_benchmark.get(col, col)
+                    benchmark_samples[benchmark_key] = int(val[2])
+
+    # Validate counts
+    for benchmark, expected in expected_counts.items():
+        if expected is None:
+            sample_details[benchmark] = {
+                "expected": "unknown",
+                "actual": benchmark_samples.get(benchmark, 0),
+                "valid": True,
+                "skipped": True,
+            }
+            continue
+
+        actual_count = benchmark_samples.get(benchmark, 0)
+        is_valid = actual_count == expected
+
+        sample_details[benchmark] = {
+            "expected": expected,
+            "actual": actual_count,
+            "valid": is_valid,
+        }
+
+        if not is_valid:
+            checks["sample_count_valid"] = False
+            if actual_count == 0:
+                sample_details[benchmark]["not_submitted"] = True
+                sample_details[benchmark]["valid"] = True
+                # Re-check: if all remaining are not_submitted, don't fail
+                checks["sample_count_valid"] = True
+            elif actual_count < expected:
+                errors.append(
+                    f"{benchmark}: Only {actual_count}/{expected} samples evaluated. "
+                    f"Did you use --limit? Full benchmark required for submission."
+                )
+            elif actual_count > expected:
+                errors.append(
+                    f"{benchmark}: {actual_count} samples found, expected {expected}. "
+                    f"Possible duplicate evaluations or wrong dataset split."
+                )
+
+    # Ensure at least one benchmark was actually submitted
+    submitted = [
+        b for b, d in sample_details.items()
+        if d.get("actual", 0) > 0 and not d.get("not_submitted", False)
+    ]
+    if not submitted:
+        errors.append(
+            "No valid benchmark data found in parquet. "
+            "At least one benchmark required."
+        )
+        checks["sample_count_valid"] = False
+
+    # Re-evaluate overall validity after processing all benchmarks
+    if any(e for e in errors):
+        checks["sample_count_valid"] = False
+
+    return checks, sample_details, errors
+
+
 def validate_trajectory_json(json_path: Path) -> tuple[dict[str, bool], list[str]]:
     """Validate trajectory JSON file.
 
@@ -410,12 +512,26 @@ def main() -> None:
         result["checks"]["parquet_exists"] = True  # Will be generated
         # No error - this is expected for new submission flow
 
-    if not json_files:
+    if not json_files and parquet_found:
+        # Parquet-only submission (client-side conversion) — validate sample
+        # counts from the score arrays instead of JSON trajectory files.
+        result["checks"]["json_valid"] = True
+        result["checks"]["inspect_eval"] = True
+        result["checks"]["no_errors"] = True
+        count_checks, sample_details, count_errors = validate_sample_counts_from_parquet(
+            files, expected_counts
+        )
+        for key, value in count_checks.items():
+            if not value:
+                result["checks"][key] = False
+        result["sample_details"] = sample_details
+        result["errors"].extend(count_errors)
+    elif not json_files:
         result["checks"]["json_valid"] = False
         result["checks"]["inspect_eval"] = False
         result["checks"]["no_errors"] = False
         result["checks"]["sample_count_valid"] = False
-        result["errors"].append("No JSON trajectory files found in submission")
+        result["errors"].append("No JSON trajectory files or parquet found in submission")
 
     # Determine overall pass/fail
     result["passed"] = len(result["errors"]) == 0
