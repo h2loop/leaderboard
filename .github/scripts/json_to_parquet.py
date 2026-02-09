@@ -2,8 +2,7 @@
 """Convert JSON trajectories to parquet format during validation.
 
 This script parses Inspect AI trajectory JSON files and generates a parquet file
-with the standardized leaderboard schema. It supports partial submissions where
-not all benchmarks need to be present.
+with the standardized leaderboard schema.
 """
 
 from __future__ import annotations
@@ -16,16 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-# Benchmark task name to column mapping
-TASK_TO_COLUMN = {
-    "teleqna": "teleqna",
-    "telelogs": "telelogs",
-    "telemath": "telemath",
-    "three_gpp": "3gpp_tsg",
-    "teletables": "teletables",
-}
-
-REQUIRED_COLUMNS = ["model", "teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables", "date"]
+from registry import get_benchmark_to_hf_map
 
 
 def extract_benchmark_from_task(task_name: str) -> str | None:
@@ -37,8 +27,9 @@ def extract_benchmark_from_task(task_name: str) -> str | None:
     Returns:
         Column name or None if not recognized
     """
+    task_to_column = get_benchmark_to_hf_map()
     task_lower = task_name.lower()
-    for task_key, column in TASK_TO_COLUMN.items():
+    for task_key, column in task_to_column.items():
         if task_key in task_lower:
             return column
     return None
@@ -185,15 +176,11 @@ def generate_parquet(
             )
 
     # Build row with score arrays [score, stderr, n_samples]
-    row: dict = {
-        "model": f"{model_name} ({provider})",
-        "teleqna": None,
-        "telelogs": None,
-        "telemath": None,
-        "3gpp_tsg": None,
-        "teletables": None,
-        "date": date.today().isoformat(),
-    }
+    task_to_column = get_benchmark_to_hf_map()
+    row: dict = {"model": f"{model_name} ({provider})"}
+    for hf_col in task_to_column.values():
+        row[hf_col] = None
+    row["date"] = date.today().isoformat()
 
     benchmarks_found = []
     for data in parsed_data:
@@ -211,7 +198,7 @@ def generate_parquet(
         "provider": provider,
         "display_name": f"{model_name} ({provider})",
         "benchmarks_found": benchmarks_found,
-        "benchmarks_missing": [b for b in TASK_TO_COLUMN.values() if b not in benchmarks_found],
+        "benchmarks_missing": [b for b in task_to_column.values() if b not in benchmarks_found],
         "output_path": str(output_path),
     }
 
