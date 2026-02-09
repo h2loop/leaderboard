@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate leaderboard submission files with sample count verification.
 
-Supports partial submissions where not all 4 benchmarks need to be present.
+ALL benchmarks from the evals registry must be present for a valid submission.
 The workflow will generate parquet files from JSON trajectories, so parquet
 files are optional in the submission.
 """
@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REQUIRED_COLUMNS = ["model", "teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables", "date"]
+from registry import get_benchmark_columns, get_benchmark_to_hf_map, get_required_columns
 
 RECOGNIZED_PROVIDERS = [
     "Openai",
@@ -37,15 +37,6 @@ RECOGNIZED_PROVIDERS = [
 # HuggingFace dataset for expected sample counts
 OPEN_TELCO_DATASET = "GSMA/open_telco"
 
-# Map benchmark task names to HuggingFace dataset config names
-BENCHMARK_TO_HF_CONFIG = {
-    "teleqna": "teleqna",
-    "telelogs": "telelogs",
-    "telemath": "telemath",
-    "three_gpp": "3gpp_tsg",
-    "teletables": "teletables",
-}
-
 
 def fetch_expected_sample_counts(token: str | None = None) -> dict[str, int | None]:
     """Fetch expected sample counts from GSMA/open_telco HuggingFace dataset.
@@ -56,16 +47,18 @@ def fetch_expected_sample_counts(token: str | None = None) -> dict[str, int | No
     Returns:
         Dict mapping benchmark name to expected sample count (None if fetch failed)
     """
+    benchmark_to_hf = get_benchmark_to_hf_map()
+
     try:
         from datasets import load_dataset
     except ImportError:
         print("Warning: datasets library not available, skipping sample count validation")
-        return {k: None for k in BENCHMARK_TO_HF_CONFIG}
+        return {k: None for k in benchmark_to_hf}
 
     expected_counts: dict[str, int | None] = {}
     max_retries = 3
 
-    for benchmark, hf_config in BENCHMARK_TO_HF_CONFIG.items():
+    for benchmark, hf_config in benchmark_to_hf.items():
         for attempt in range(max_retries):
             try:
                 ds = load_dataset(
@@ -80,9 +73,9 @@ def fetch_expected_sample_counts(token: str | None = None) -> dict[str, int | No
             except Exception as e:
                 if attempt < max_retries - 1:
                     time.sleep(2**attempt)  # Exponential backoff
-                else:
-                    print(f"Warning: Could not fetch {benchmark} count after {max_retries} attempts: {e}")
-                    expected_counts[benchmark] = None
+                    continue
+                print(f"Warning: Could not fetch {benchmark} count after {max_retries} attempts: {type(e).__name__}")
+                expected_counts[benchmark] = None
 
     return expected_counts
 
@@ -106,11 +99,11 @@ def extract_sample_info_from_trajectory(
 
     # Extract benchmark name from eval.task
     benchmark = None
+    benchmark_to_hf = get_benchmark_to_hf_map()
     if "eval" in data and isinstance(data["eval"], dict):
         task = data["eval"].get("task", "")
-        # Normalize benchmark name
         task_lower = task.lower()
-        for key in BENCHMARK_TO_HF_CONFIG:
+        for key in benchmark_to_hf:
             if key in task_lower:
                 benchmark = key
                 break
@@ -189,20 +182,29 @@ def validate_sample_counts(
                     f"Possible duplicate evaluations or wrong dataset split."
                 )
 
-    # Note: We no longer fail for missing benchmarks - partial submissions are allowed
-    # Only record missing benchmarks for informational purposes
+    # ALL benchmarks are required — missing benchmarks cause validation failure
     for benchmark in expected_counts:
-        if benchmark not in benchmark_samples and expected_counts[benchmark] is not None:
+        if benchmark not in benchmark_samples:
             if benchmark not in sample_details:
                 sample_details[benchmark] = {
-                    "expected": expected_counts[benchmark],
+                    "expected": expected_counts.get(benchmark) or "unknown",
                     "actual": 0,
-                    "valid": True,  # Not a failure - just not submitted
-                    "not_submitted": True,
+                    "valid": False,
                 }
-                # Don't mark as invalid - partial submissions are OK
+                checks["sample_count_valid"] = False
+                errors.append(
+                    f"Missing benchmark: {benchmark}. "
+                    f"ALL benchmarks are required for submission."
+                )
 
-    return checks, sample_details, errors
+    # Translate keys from task names to HF column names for display
+    benchmark_to_hf = get_benchmark_to_hf_map()
+    display_details = {}
+    for benchmark, detail in sample_details.items():
+        hf_name = benchmark_to_hf.get(benchmark, benchmark)
+        display_details[hf_name] = detail
+
+    return checks, display_details, errors
 
 
 def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
@@ -235,7 +237,7 @@ def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
         return checks, errors
 
     # Check required columns
-    missing = set(REQUIRED_COLUMNS) - set(df.columns)
+    missing = set(get_required_columns()) - set(df.columns)
     if missing:
         errors.append(f"Missing columns: {missing}")
     else:
@@ -259,7 +261,7 @@ def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
     checks["provider_recognized"] = provider_recognized
 
     # Validate score arrays (can be list, tuple, or numpy array from parquet)
-    for col in BENCHMARK_TO_HF_CONFIG.values():
+    for col in get_benchmark_columns():
         if col not in df.columns:
             continue
         for idx, val in df[col].items():
@@ -291,8 +293,8 @@ def validate_sample_counts_from_parquet(
     sample_details: dict[str, dict] = {}
     errors: list[str] = []
 
-    # Column name -> benchmark key mapping (reverse of BENCHMARK_TO_HF_CONFIG)
-    column_to_benchmark = {v: k for k, v in BENCHMARK_TO_HF_CONFIG.items()}
+    # Column name -> benchmark key mapping (reverse of registry map)
+    column_to_benchmark = {v: k for k, v in get_benchmark_to_hf_map().items()}
 
     # Read all parquet files
     benchmark_samples: dict[str, int] = {}
@@ -305,7 +307,7 @@ def validate_sample_counts_from_parquet(
         except Exception:
             continue
 
-        for col in BENCHMARK_TO_HF_CONFIG.values():
+        for col in get_benchmark_columns():
             if col not in df.columns:
                 continue
             for val in df[col]:
@@ -519,15 +521,14 @@ def main() -> None:
         result["sample_details"] = sample_details
         result["errors"].extend(count_errors)
 
-        # Check that at least one valid benchmark was found
-        submitted_benchmarks = [
-            b for b, d in sample_details.items()
-            if d.get("actual", 0) > 0 and not d.get("not_submitted", False)
+        # Check that all required benchmarks were found
+        submitted = [
+            b for b, d in sample_details.items() if d.get("actual", 0) > 0
         ]
-        if not submitted_benchmarks:
+        if not submitted:
             result["errors"].append(
                 "No valid benchmark trajectories found. "
-                "At least one benchmark (teleqna, telelogs, telemath, 3gpp_tsg, teletables) required."
+                "ALL benchmarks are required for submission."
             )
 
     # Check that we found required files

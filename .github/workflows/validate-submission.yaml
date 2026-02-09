@@ -36,7 +36,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v44
+        uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46.0.1
         with:
           files: |
             model_cards/**
@@ -156,19 +156,11 @@ jobs:
 
             if (validation.sample_details && Object.keys(validation.sample_details).length > 0) {
               body += '\n### Benchmark Status:\n';
-              const allBenchmarks = ['teleqna', 'telelogs', 'telemath', '3gpp_tsg', 'teletables'];
-              for (const benchmark of allBenchmarks) {
-                const detail = validation.sample_details[benchmark];
-                if (!detail) {
-                  body += `- :grey_question: **${benchmark}**: Not submitted\n`;
-                } else if (detail.not_submitted) {
-                  body += `- :grey_question: **${benchmark}**: Not submitted\n`;
-                } else {
-                  const icon = detail.valid ? ':white_check_mark:' : ':x:';
-                  const expected = detail.expected === 'unknown' ? '?' : detail.expected;
-                  const skipped = detail.skipped ? ' *(validation skipped)*' : '';
-                  body += `- ${icon} **${benchmark}**: ${detail.actual} / ${expected} samples${skipped}\n`;
-                }
+              for (const [benchmark, detail] of Object.entries(validation.sample_details)) {
+                const icon = detail.valid ? ':white_check_mark:' : ':x:';
+                const expected = detail.expected === 'unknown' ? '?' : detail.expected;
+                const skipped = detail.skipped ? ' *(validation skipped)*' : '';
+                body += `- ${icon} **${benchmark}**: ${detail.actual} / ${expected} samples${skipped}\n`;
               }
             }
 
