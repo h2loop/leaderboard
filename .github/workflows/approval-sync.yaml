@@ -177,7 +177,7 @@ jobs:
         run: |
           python .github/scripts/calculate_avg_score.py
 
-      - name: Close PR after successful sync
+      - name: Merge PR and archive submission
         uses: actions/github-script@v7
         with:
           script: |
@@ -192,7 +192,7 @@ jobs:
             });
 
             // Remove other status labels
-            const labelsToRemove = ['ready-for-review', 'needs-work', 'approve'];
+            const labelsToRemove = ['ready-for-review', 'needs-work'];
             for (const label of labelsToRemove) {
               try {
                 await github.rest.issues.removeLabel({
@@ -206,20 +206,22 @@ jobs:
               }
             }
 
-            // Post success comment before closing
+            // Merge PR to permanently store trajectories in repo (SWE-bench style)
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              merge_method: 'squash',
+              commit_title: `[Submission] ${context.payload.pull_request.title}`,
+              commit_message: `Approved and synced to HuggingFace.\n\nPR: #${prNumber}`
+            });
+
+            // Post success comment after merge
             await github.rest.issues.createComment({
               issue_number: prNumber,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `:rocket: **Submission synced to HuggingFace!**\n\nYour evaluation has been synced to [GSMA/leaderboard](https://huggingface.co/datasets/GSMA/leaderboard) on HuggingFace.\n\nClosing this PR — the source of truth is the HF dataset.\n\nThank you for your contribution!`
-            });
-
-            // Close PR (don't merge — HF dataset is the source of truth)
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              state: 'closed'
+              body: `:rocket: **Submission approved, merged, and synced!**\n\nYour evaluation has been:\n- :white_check_mark: Merged to the repository (trajectories archived)\n- :white_check_mark: Synced to [GSMA/leaderboard](https://huggingface.co/datasets/GSMA/leaderboard) on HuggingFace\n\nThank you for your contribution!`
             });
 
       - name: Trigger ot_hub deployment
