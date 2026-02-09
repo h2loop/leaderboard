@@ -13,8 +13,10 @@ import sys
 import pandas as pd
 from datasets import Dataset, load_dataset
 
+from registry import get_benchmark_columns
+
 DATASET_REPO = "GSMA/leaderboard"
-BENCHMARK_COLUMNS = ["teleqna", "telelogs", "telemath", "3gpp_tsg", "teletables"]
+BENCHMARK_COLUMNS = get_benchmark_columns()
 
 
 def extract_score(value: object) -> float | None:
@@ -28,19 +30,23 @@ def extract_score(value: object) -> float | None:
 
 
 def compute_avg_score(row: pd.Series) -> list[float] | None:
-    """Compute average score across all benchmarks for a single row.
+    """Compute average score across available benchmarks for a single row.
 
-    Returns [avg, 0, 0] to match benchmark column format, or None if any
-    benchmark is missing.
+    Returns [avg, 0, n_benchmarks] to match benchmark column format, where
+    n_benchmarks indicates how many scores contributed to the average.
+    Returns None only if zero valid scores exist.
     """
     scores = [extract_score(row.get(col)) for col in BENCHMARK_COLUMNS]
+    valid = [(col, s) for col, s in zip(BENCHMARK_COLUMNS, scores) if s is not None]
     missing = [col for col, s in zip(BENCHMARK_COLUMNS, scores) if s is None]
     if missing:
         model = row.get("model", "unknown")
-        print(f"Warning: {model} missing benchmarks: {', '.join(missing)}")
+        print(f"Info: {model} missing benchmarks: {', '.join(missing)} "
+              f"(averaging {len(valid)}/{len(BENCHMARK_COLUMNS)})")
+    if not valid:
         return None
-    avg = sum(scores) / len(scores)
-    return [avg, 0, 0]
+    avg = sum(s for _, s in valid) / len(valid)
+    return [avg, 0, len(valid)]
 
 
 def load_leaderboard(token: str) -> pd.DataFrame:
@@ -72,6 +78,12 @@ def main() -> None:
     if "tci" in df.columns:
         print("Archiving legacy 'tci' column as 'tci_legacy'")
         df = df.rename(columns={"tci": "tci_legacy"})
+
+    # Backfill missing benchmark columns so compute_avg_score sees them
+    for col in BENCHMARK_COLUMNS:
+        if col not in df.columns:
+            print(f"Adding missing benchmark column: {col}")
+            df[col] = None
 
     print("Computing average scores...")
     df["avg_score"] = df.apply(compute_avg_score, axis=1)
