@@ -32,6 +32,13 @@ RECOGNIZED_PROVIDERS = [
     "Openrouter",
     "Groq",
     "Fireworks",
+    "Grok",
+    "Perplexity",
+    "Sambanova",
+    "Cloudflare",
+    "Ollama",
+    "Vllm",
+    "Sglang",
 ]
 
 # HuggingFace dataset for expected sample counts

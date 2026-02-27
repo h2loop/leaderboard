@@ -28,6 +28,8 @@ BENCHMARK_HF_COLUMNS: dict[str, str] = {
     "telemath": "telemath",
     "three_gpp": "3gpp_tsg",
     "teletables": "teletables",
+    "oranbench": "oranbench",
+    "srsranbench": "srsranbench",
 }
 
 _FETCH_TIMEOUT_SECONDS = 10
