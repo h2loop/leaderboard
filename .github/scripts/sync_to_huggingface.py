@@ -2,12 +2,14 @@
 """Sync validated submissions to HuggingFace dataset.
 
 All benchmarks are required for submission. Existing models are overwritten
-with new scores.
+with new scores. Derived columns (rank, average, benchmarks_completed) are
+computed after merge.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import sys
@@ -16,7 +18,65 @@ from pathlib import Path
 import pandas as pd
 from datasets import Dataset
 
+from registry import get_benchmark_columns
+
 DATASET_REPO = "GSMA/leaderboard"
+BENCHMARK_COLUMNS = get_benchmark_columns()
+
+
+def _extract_score(value: object) -> float | None:
+    """Extract the primary score from a string-encoded or list score value."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            parsed = ast.literal_eval(value)
+            if isinstance(parsed, list) and len(parsed) >= 1:
+                return float(parsed[0])
+        except (ValueError, SyntaxError):
+            return None
+    try:
+        return float(value[0])
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def compute_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute rank, average, and benchmarks_completed after merge.
+
+    - average: arithmetic mean of available benchmark scores (0-1 scale)
+    - benchmarks_completed: count of non-null benchmark columns
+    - rank: 1-based rank by average (descending), ties get same rank
+    """
+    averages = []
+    completed_counts = []
+
+    for _, row in df.iterrows():
+        scores = []
+        n_completed = 0
+        for col in BENCHMARK_COLUMNS:
+            score = _extract_score(row.get(col))
+            if score is not None:
+                scores.append(score)
+                n_completed += 1
+        if scores:
+            averages.append(sum(scores) / len(scores))
+        else:
+            averages.append(None)
+        completed_counts.append(n_completed)
+
+    df["average"] = averages
+    df["benchmarks_completed"] = completed_counts
+
+    # Rank by average descending (None values get no rank)
+    df["rank"] = (
+        df["average"]
+        .rank(ascending=False, method="min", na_option="bottom")
+        .where(df["average"].notna())
+        .astype("Int64")
+    )
+
+    return df
 
 
 def load_existing_dataset(token: str) -> pd.DataFrame:
@@ -48,6 +108,9 @@ def merge_submissions(
 ) -> tuple[pd.DataFrame, dict]:
     """Merge new entries into the leaderboard, overwriting existing models.
 
+    Matches on (model, provider) pair to avoid collisions between
+    same-named models from different providers.
+
     Args:
         existing_df: Current leaderboard data
         new_df: New submission data (all benchmark scores required)
@@ -61,7 +124,10 @@ def merge_submissions(
     }
 
     if existing_df.empty:
-        sync_report["new_models"] = new_df["model"].tolist()
+        sync_report["new_models"] = [
+            f"{row['model']} ({row.get('provider', '')})"
+            for _, row in new_df.iterrows()
+        ]
         return new_df.copy(), sync_report
 
     if new_df.empty:
@@ -78,20 +144,29 @@ def merge_submissions(
             new_df[col] = None
 
     result_df = existing_df.copy()
-    existing_models = set(existing_df["model"].tolist())
+
+    # Build set of existing (model, provider) pairs for match
+    existing_keys = set()
+    for _, row in existing_df.iterrows():
+        key = (str(row.get("model", "")), str(row.get("provider", "")))
+        existing_keys.add(key)
 
     for _, new_row in new_df.iterrows():
-        model_name = new_row["model"]
+        model_name = str(new_row.get("model", ""))
+        provider = str(new_row.get("provider", ""))
+        key = (model_name, provider)
+        display = f"{model_name} ({provider})"
 
-        if model_name in existing_models:
-            idx = result_df[result_df["model"] == model_name].index[0]
+        if key in existing_keys:
+            mask = (result_df["model"] == model_name) & (result_df["provider"] == provider)
+            idx = result_df[mask].index[0]
             result_df.loc[idx] = new_row
-            sync_report["updated_models"].append(model_name)
+            sync_report["updated_models"].append(display)
             continue
 
         new_row_df = pd.DataFrame([new_row])
         result_df = pd.concat([result_df, new_row_df], ignore_index=True)
-        sync_report["new_models"].append(model_name)
+        sync_report["new_models"].append(display)
 
     return result_df, sync_report
 
@@ -171,6 +246,9 @@ def main() -> None:
     print(f"Existing entries: {len(existing_df)}")
 
     merged_df, sync_report = merge_submissions(existing_df, new_df)
+
+    # Compute derived columns (rank, average, benchmarks_completed)
+    merged_df = compute_derived_columns(merged_df)
     print(f"Merged entries: {len(merged_df)}")
 
     print("\n=== Sync Report ===")

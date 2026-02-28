@@ -6,7 +6,7 @@ All leaderboard scripts import from here instead of hardcoding benchmark lists.
 
 The registry dynamically fetches ``__all__`` from the evals repo's
 ``_registry.py`` and validates it against a local mapping that translates
-task names to HF column names (e.g. ``three_gpp`` -> ``3gpp_tsg``).
+task names to HF column names (matching benchmark IDs).
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ BENCHMARK_HF_COLUMNS: dict[str, str] = {
     "teleqna": "teleqna",
     "telelogs": "telelogs",
     "telemath": "telemath",
-    "three_gpp": "3gpp_tsg",
+    "three_gpp": "three_gpp",
     "teletables": "teletables",
 }
 
@@ -114,10 +114,10 @@ def get_required_columns() -> list[str]:
     """Return the full list of required parquet/leaderboard columns.
 
     Returns:
-        ``["model", <hf_columns...>, "date"]``
+        ``["model", "provider", <hf_columns...>, "date"]``
     """
     hf_map = get_benchmark_to_hf_map()
-    return ["model", *sorted(hf_map.values()), "date"]
+    return ["model", "provider", *sorted(hf_map.values()), "date"]
 
 
 def get_benchmark_columns() -> list[str]:

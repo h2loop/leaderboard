@@ -9,6 +9,7 @@ files are optional in the submission.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import sys
@@ -243,31 +244,57 @@ def validate_parquet(parquet_path: Path) -> tuple[dict[str, bool], list[str]]:
     else:
         checks["parquet_schema"] = True
 
-    # Validate model format: "model_name (Provider)"
+    # Validate model format: short name (no provider in parens)
     model_format_ok = True
     provider_recognized = True
 
     for model in df["model"].unique():
-        if " (" not in model or not model.endswith(")"):
-            errors.append(f"Invalid model format: {model}")
+        if " (" in model and model.endswith(")"):
+            errors.append(
+                f"Invalid model format: {model} — "
+                f"expected short name only (provider goes in 'provider' column)"
+            )
             model_format_ok = False
-        else:
-            provider = model.split("(")[-1].rstrip(")")
-            if provider.lower() not in [p.lower() for p in RECOGNIZED_PROVIDERS]:
+
+    # Validate provider column
+    if "provider" in df.columns:
+        for provider in df["provider"].unique():
+            if provider and provider.lower() not in [p.lower() for p in RECOGNIZED_PROVIDERS]:
                 errors.append(f"Unrecognized provider: {provider}")
                 provider_recognized = False
+    else:
+        errors.append("Missing required 'provider' column")
+        provider_recognized = False
 
     checks["model_format"] = model_format_ok
     checks["provider_recognized"] = provider_recognized
 
-    # Validate score arrays (can be list, tuple, or numpy array from parquet)
+    # Validate score format: string-encoded "[score, stderr]"
     for col in get_benchmark_columns():
         if col not in df.columns:
             continue
         for idx, val in df[col].items():
-            if val is not None:
-                if not isinstance(val, (list, tuple, np.ndarray)) or len(val) < 2:
-                    errors.append(f"Invalid score format in {col} row {idx}: expected [score, stderr, ...]")
+            if val is None:
+                continue
+            if isinstance(val, str):
+                try:
+                    parsed = ast.literal_eval(val)
+                    if not isinstance(parsed, list) or len(parsed) != 2:
+                        errors.append(
+                            f"Invalid score format in {col} row {idx}: "
+                            f"expected \"[score, stderr]\", got {val!r}"
+                        )
+                except (ValueError, SyntaxError):
+                    errors.append(
+                        f"Cannot parse score in {col} row {idx}: {val!r}"
+                    )
+            elif isinstance(val, (list, tuple, np.ndarray)) and len(val) >= 2:
+                pass  # Legacy format — still accept for backward compat
+            else:
+                errors.append(
+                    f"Invalid score format in {col} row {idx}: "
+                    f"expected string-encoded \"[score, stderr]\""
+                )
 
     return checks, errors
 
@@ -276,11 +303,12 @@ def validate_sample_counts_from_parquet(
     files: list[str],
     expected_counts: dict[str, int | None],
 ) -> tuple[dict[str, bool], dict[str, dict], list[str]]:
-    """Validate sample counts from parquet score arrays.
+    """Validate benchmark presence from parquet score columns.
 
-    For parquet-only submissions, each benchmark column stores
-    [score, stderr, n_samples]. Extract n_samples and compare
-    against expected counts from HuggingFace.
+    For parquet-only submissions, scores are string-encoded "[score, stderr]"
+    without n_samples. Sample count validation is done client-side by Satellite
+    before submission. Here we only verify that benchmark columns are present
+    and contain valid score data.
 
     Args:
         files: List of file paths from the submission.
@@ -296,8 +324,8 @@ def validate_sample_counts_from_parquet(
     # Column name -> benchmark key mapping (reverse of registry map)
     column_to_benchmark = {v: k for k, v in get_benchmark_to_hf_map().items()}
 
-    # Read all parquet files
-    benchmark_samples: dict[str, int] = {}
+    # Read all parquet files and check which benchmarks have valid scores
+    benchmarks_present: set[str] = set()
     for file_path in files:
         path = Path(file_path)
         if path.suffix != ".parquet" or not path.exists():
@@ -313,71 +341,42 @@ def validate_sample_counts_from_parquet(
             for val in df[col]:
                 if val is None:
                     continue
-                if isinstance(val, (list, tuple, np.ndarray)) and len(val) >= 3:
-                    benchmark_key = column_to_benchmark.get(col, col)
+                benchmark_key = column_to_benchmark.get(col, col)
+                # Accept both string-encoded and legacy list formats
+                if isinstance(val, str):
                     try:
-                        count = int(val[2])
-                    except (TypeError, ValueError):
-                        errors.append(f"Invalid sample count in {col}: {val[2]}")
-                        continue
-                    if benchmark_key in benchmark_samples and benchmark_samples[benchmark_key] != count:
-                        errors.append(
-                            f"Inconsistent sample counts for {col}: "
-                            f"{benchmark_samples[benchmark_key]} vs {count}"
-                        )
-                    benchmark_samples[benchmark_key] = count
+                        parsed = ast.literal_eval(val)
+                        if isinstance(parsed, list) and len(parsed) >= 2:
+                            benchmarks_present.add(benchmark_key)
+                    except (ValueError, SyntaxError):
+                        errors.append(f"Cannot parse score in {col}: {val!r}")
+                elif isinstance(val, (list, tuple, np.ndarray)) and len(val) >= 2:
+                    benchmarks_present.add(benchmark_key)
 
-    # Validate counts
-    for benchmark, expected in expected_counts.items():
-        if expected is None:
+    # Validate that benchmarks are present
+    for benchmark in expected_counts:
+        if benchmark in benchmarks_present:
             sample_details[benchmark] = {
-                "expected": "unknown",
-                "actual": benchmark_samples.get(benchmark, 0),
+                "expected": expected_counts[benchmark] or "unknown",
+                "actual": "present",
                 "valid": True,
-                "skipped": True,
             }
-            continue
-
-        actual_count = benchmark_samples.get(benchmark, 0)
-        is_valid = actual_count == expected
-
-        sample_details[benchmark] = {
-            "expected": expected,
-            "actual": actual_count,
-            "valid": is_valid,
-        }
-
-        if not is_valid:
-            if actual_count == 0:
-                sample_details[benchmark]["not_submitted"] = True
-                sample_details[benchmark]["valid"] = True
-                # Do NOT reset checks here — prior failures must persist
-            elif actual_count < expected:
-                checks["sample_count_valid"] = False
-                errors.append(
-                    f"{benchmark}: Only {actual_count}/{expected} samples evaluated. "
-                    f"Did you use --limit? Full benchmark required for submission."
-                )
-            elif actual_count > expected:
-                checks["sample_count_valid"] = False
-                errors.append(
-                    f"{benchmark}: {actual_count} samples found, expected {expected}. "
-                    f"Possible duplicate evaluations or wrong dataset split."
-                )
+        else:
+            sample_details[benchmark] = {
+                "expected": expected_counts[benchmark] or "unknown",
+                "actual": 0,
+                "valid": True,
+                "not_submitted": True,
+            }
 
     # Ensure at least one benchmark was actually submitted
-    submitted = [
-        b for b, d in sample_details.items()
-        if d.get("actual", 0) > 0 and not d.get("not_submitted", False)
-    ]
-    if not submitted:
+    if not benchmarks_present:
         errors.append(
             "No valid benchmark data found in parquet. "
             "At least one benchmark required."
         )
         checks["sample_count_valid"] = False
 
-    # Re-evaluate overall validity after processing all benchmarks
     if errors:
         checks["sample_count_valid"] = False
 

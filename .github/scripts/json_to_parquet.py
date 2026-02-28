@@ -120,18 +120,14 @@ def parse_trajectory_json(json_path: Path) -> dict | None:
         print(f"Warning: No accuracy value in {json_path.name}")
         return None
 
-    # Convert to percentage (scores are stored as 0-1 in JSON, 0-100 in parquet)
-    score = accuracy * 100
-    stderr_val = (stderr * 100) if stderr else 0.0
-
-    # Get n_samples
-    n_samples = results.get("total_samples", 0)
+    # Keep scores at 0-1 scale to match HuggingFace dataset schema
+    score = round(accuracy, 6)
+    stderr_val = round(stderr, 6) if stderr else 0.0
 
     return {
         "benchmark": benchmark,
-        "score": round(score, 2),
-        "stderr": round(stderr_val, 6),
-        "n_samples": float(n_samples),
+        "score": score,
+        "stderr": stderr_val,
         "model_name": model_name,
         "provider": provider,
     }
@@ -175,9 +171,12 @@ def generate_parquet(
                 f"{model_name} ({provider}) vs {data['model_name']} ({data['provider']})"
             )
 
-    # Build row with score arrays [score, stderr, n_samples]
+    # Build row with string-encoded scores "[score, stderr]" at 0-1 scale
     task_to_column = get_benchmark_to_hf_map()
-    row: dict = {"model": f"{model_name} ({provider})"}
+    row: dict = {
+        "model": model_name,
+        "provider": provider,
+    }
     for hf_col in task_to_column.values():
         row[hf_col] = None
     row["date"] = date.today().isoformat()
@@ -185,8 +184,7 @@ def generate_parquet(
     benchmarks_found = []
     for data in parsed_data:
         benchmark = data["benchmark"]
-        score_array = [data["score"], data["stderr"], data["n_samples"]]
-        row[benchmark] = score_array
+        row[benchmark] = str([data["score"], data["stderr"]])
         benchmarks_found.append(benchmark)
 
     # Create DataFrame and save
@@ -196,7 +194,6 @@ def generate_parquet(
     return {
         "model_name": model_name,
         "provider": provider,
-        "display_name": f"{model_name} ({provider})",
         "benchmarks_found": benchmarks_found,
         "benchmarks_missing": [b for b in task_to_column.values() if b not in benchmarks_found],
         "output_path": str(output_path),
@@ -244,7 +241,7 @@ def main() -> None:
     try:
         result = generate_parquet(json_files, output_path)
         print(f"Generated parquet: {result['output_path']}")
-        print(f"Model: {result['display_name']}")
+        print(f"Model: {result['model_name']} (Provider: {result['provider']})")
         print(f"Benchmarks found: {', '.join(result['benchmarks_found'])}")
         if result["benchmarks_missing"]:
             print(f"Benchmarks missing: {', '.join(result['benchmarks_missing'])}")
