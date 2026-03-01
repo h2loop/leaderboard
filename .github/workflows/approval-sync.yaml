@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas pyarrow datasets huggingface_hub
+          pip install pandas pyarrow datasets huggingface_hub numpy
 
       - name: Find parquet files
         id: find-parquet
@@ -51,7 +51,7 @@ jobs:
           python .github/scripts/sync_to_huggingface.py \
             --files "${{ steps.find-parquet.outputs.files }}"
 
-      - name: Calculate and update average scores
+      - name: Calculate derived columns
         if: steps.find-parquet.outputs.files != ''
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas pyarrow datasets huggingface_hub
+          pip install pandas pyarrow datasets huggingface_hub numpy
 
       - name: Find parquet files
         id: find-parquet
@@ -170,7 +170,7 @@ jobs:
               });
             }
 
-      - name: Calculate and update average scores
+      - name: Calculate derived columns
         if: steps.find-parquet.outputs.files != ''
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

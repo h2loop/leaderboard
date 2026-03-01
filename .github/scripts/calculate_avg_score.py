@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Calculate average scores for all leaderboard entries and update HuggingFace.
+"""Calculate derived columns for all leaderboard entries and update HuggingFace.
 
-Replaces the IRT-based TCI with a simple arithmetic mean of benchmark scores.
+Computes `average`, `benchmarks_completed`, and `rank` from benchmark scores.
 Called by the approval-sync workflow after syncing parquet files.
 """
 
 from __future__ import annotations
 
+import ast
 import os
 import sys
 
@@ -20,33 +21,69 @@ BENCHMARK_COLUMNS = get_benchmark_columns()
 
 
 def extract_score(value: object) -> float | None:
-    """Extract the primary score from [score, stderr, n_samples] format."""
+    """Extract the primary score from a string-encoded or list score value.
+
+    Handles both new format (string "[score, stderr]") and legacy
+    format (list/array [score, stderr, ...]).
+    """
     if value is None:
         return None
+    if isinstance(value, str):
+        try:
+            parsed = ast.literal_eval(value)
+            if isinstance(parsed, list) and len(parsed) >= 1:
+                return float(parsed[0])
+        except (ValueError, SyntaxError):
+            return None
     try:
         return float(value[0])
     except (TypeError, ValueError, IndexError):
         return None
 
 
-def compute_avg_score(row: pd.Series) -> list[float] | None:
-    """Compute average score across available benchmarks for a single row.
+def compute_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute average, benchmarks_completed, and rank for all rows.
 
-    Returns [avg, 0, n_benchmarks] to match benchmark column format, where
-    n_benchmarks indicates how many scores contributed to the average.
-    Returns None only if zero valid scores exist.
+    - average: arithmetic mean of available benchmark scores (0-1 scale)
+    - benchmarks_completed: count of non-null benchmark columns
+    - rank: 1-based rank by average (descending), ties get same rank
     """
-    scores = [extract_score(row.get(col)) for col in BENCHMARK_COLUMNS]
-    valid = [(col, s) for col, s in zip(BENCHMARK_COLUMNS, scores) if s is not None]
-    missing = [col for col, s in zip(BENCHMARK_COLUMNS, scores) if s is None]
-    if missing:
+    averages = []
+    completed_counts = []
+
+    for _, row in df.iterrows():
+        scores = []
+        n_completed = 0
+        for col in BENCHMARK_COLUMNS:
+            score = extract_score(row.get(col))
+            if score is not None:
+                scores.append(score)
+                n_completed += 1
+
         model = row.get("model", "unknown")
-        print(f"Info: {model} missing benchmarks: {', '.join(missing)} "
-              f"(averaging {len(valid)}/{len(BENCHMARK_COLUMNS)})")
-    if not valid:
-        return None
-    avg = sum(s for _, s in valid) / len(valid)
-    return [avg, 0, len(valid)]
+        missing = [col for col in BENCHMARK_COLUMNS if extract_score(row.get(col)) is None]
+        if missing:
+            print(f"Info: {model} missing benchmarks: {', '.join(missing)} "
+                  f"(averaging {n_completed}/{len(BENCHMARK_COLUMNS)})")
+
+        if scores:
+            averages.append(sum(scores) / len(scores))
+        else:
+            averages.append(None)
+        completed_counts.append(n_completed)
+
+    df["average"] = averages
+    df["benchmarks_completed"] = completed_counts
+
+    # Rank by average descending (None values get no rank)
+    df["rank"] = (
+        df["average"]
+        .rank(ascending=False, method="min", na_option="bottom")
+        .where(df["average"].notna())
+        .astype("Int64")
+    )
+
+    return df
 
 
 def load_leaderboard(token: str) -> pd.DataFrame:
@@ -60,7 +97,7 @@ def load_leaderboard(token: str) -> pd.DataFrame:
 
 
 def main() -> None:
-    """Calculate average scores and push to HuggingFace."""
+    """Calculate derived columns and push to HuggingFace."""
     hf_token = os.environ.get("HF_TOKEN")
     if not hf_token:
         print("Error: HF_TOKEN environment variable required")
@@ -71,25 +108,28 @@ def main() -> None:
     print(f"Loaded {len(df)} entries")
 
     if df.empty:
-        print("Dataset is empty, skipping average score calculation")
+        print("Dataset is empty, skipping derived column calculation")
         sys.exit(0)
 
-    # Archive legacy TCI column if it exists (preserve historical data)
+    # Archive legacy columns if they exist (preserve historical data)
     if "tci" in df.columns:
         print("Archiving legacy 'tci' column as 'tci_legacy'")
         df = df.rename(columns={"tci": "tci_legacy"})
+    if "avg_score" in df.columns:
+        print("Archiving legacy 'avg_score' column as 'avg_score_legacy'")
+        df = df.rename(columns={"avg_score": "avg_score_legacy"})
 
-    # Backfill missing benchmark columns so compute_avg_score sees them
+    # Backfill missing benchmark columns so compute sees them
     for col in BENCHMARK_COLUMNS:
         if col not in df.columns:
             print(f"Adding missing benchmark column: {col}")
             df[col] = None
 
-    print("Computing average scores...")
-    df["avg_score"] = df.apply(compute_avg_score, axis=1)
+    print("Computing derived columns (average, benchmarks_completed, rank)...")
+    df = compute_derived_columns(df)
 
-    scored = df["avg_score"].notna().sum()
-    print(f"Computed average score for {scored}/{len(df)} models")
+    scored = df["average"].notna().sum()
+    print(f"Computed scores for {scored}/{len(df)} models")
 
     # Clean up index columns before upload
     index_cols = [c for c in df.columns if c.startswith("__index_level")]
@@ -100,7 +140,7 @@ def main() -> None:
     print("Uploading to HuggingFace...")
     dataset = Dataset.from_pandas(df)
     dataset.push_to_hub(DATASET_REPO, token=hf_token)
-    print(f"Successfully updated {DATASET_REPO} with avg_score column")
+    print(f"Successfully updated {DATASET_REPO} with derived columns")
 
 
 if __name__ == "__main__":

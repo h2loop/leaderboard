@@ -24,6 +24,8 @@ REGISTRY_URL = (
 # MUST be added here — fetch_registry_benchmarks() will raise otherwise.
 BENCHMARK_HF_COLUMNS: dict[str, str] = {
     "teleqna": "teleqna",
+    "oranbench": "oranbench",
+    "srsranbench": "srsranbench",
     "telelogs": "telelogs",
     "telemath": "telemath",
     "three_gpp": "3gpp_tsg",
