@@ -30,6 +30,7 @@ BENCHMARK_HF_COLUMNS: dict[str, str] = {
     "telemath": "telemath",
     "three_gpp": "3gpp_tsg",
     "teletables": "teletables",
+    "sixg_bench": "sixg_bench",
 }
 
 _FETCH_TIMEOUT_SECONDS = 10
