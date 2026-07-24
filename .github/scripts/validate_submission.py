@@ -32,6 +32,8 @@ RECOGNIZED_PROVIDERS = [
     "Openrouter",
     "Groq",
     "Fireworks",
+    "H2LooP",
+    "H2loop",
 ]
 
 # HuggingFace dataset for expected sample counts
