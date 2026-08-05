@@ -7,10 +7,9 @@ on:
     types: [labeled]
   workflow_dispatch:
     inputs:
-      sync_all:
-        description: 'Sync all model_cards parquet files to HuggingFace'
-        required: false
-        default: 'true'
+      files:
+        description: 'Space-separated model_cards/*.parquet paths to sync'
+        required: true
 
 jobs:
   # Manual sync job - can be triggered from Actions tab
@@ -36,12 +35,22 @@ jobs:
         run: |
           pip install pandas pyarrow datasets huggingface_hub numpy
 
-      - name: Find parquet files
+      # Named cards only. Globbing model_cards/ would also push older cards
+      # whose scores no longer match the published board, silently rewriting
+      # models this run was never meant to touch.
+      - name: Check requested files
         id: find-parquet
+        env:
+          FILES: ${{ inputs.files }}
         run: |
-          FILES=$(find model_cards -name "*.parquet" 2>/dev/null | tr '\n' ' ' || echo "")
+          for f in $FILES; do
+            case "$f" in
+              model_cards/*.parquet) [ -f "$f" ] || { echo "not on main: $f"; exit 1; } ;;
+              *) echo "refusing non-card path: $f"; exit 1 ;;
+            esac
+          done
           echo "files=$FILES" >> $GITHUB_OUTPUT
-          echo "Found parquet files: $FILES"
+          echo "Syncing: $FILES"
 
       - name: Sync to HuggingFace
         if: steps.find-parquet.outputs.files != ''
@@ -78,11 +87,22 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout PR branch
+      # This job holds HF_TOKEN, so it must run OUR scripts, never the PR's.
+      # Check out main for the code, then take only the submitted data files
+      # from the PR head (which for a fork lives at refs/pull/N/head, not in a
+      # local branch — checking out github.head_ref here always failed).
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: main
           fetch-depth: 0
+
+      - name: Take submission files from PR head
+        run: |
+          git fetch origin "pull/${{ github.event.pull_request.number }}/head:pr-head"
+          # Separate checkouts: a fork missing either directory is not an error.
+          git checkout pr-head -- model_cards/ || echo "no model_cards/ in PR head"
+          git checkout pr-head -- trajectories/ || echo "no trajectories/ in PR head"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -93,15 +113,18 @@ jobs:
         run: |
           pip install pandas pyarrow datasets huggingface_hub numpy
 
+      # Only what THIS PR changed. Syncing every card in model_cards/ would
+      # also push our older cards, whose scores no longer match the published
+      # board, silently rewriting models the PR never touched.
       - name: Find parquet files
         id: find-parquet
         run: |
-          FILES=$(find model_cards -name "*.parquet" 2>/dev/null | tr '\n' ' ' || echo "")
+          FILES=$(git diff --cached --name-only -- 'model_cards/*.parquet' | tr '\n' ' ')
           echo "files=$FILES" >> $GITHUB_OUTPUT
           if [ -n "$FILES" ]; then
-            echo "Found parquet files: $FILES"
+            echo "Syncing parquet files from this PR: $FILES"
           else
-            echo "No parquet files found"
+            echo "No parquet changes in this PR"
           fi
 
       - name: Sync to HuggingFace
